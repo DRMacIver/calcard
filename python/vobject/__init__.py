@@ -36,6 +36,9 @@ from vobject._core import (
 )
 from vobject._core import parse as _core_parse
 from vobject._core import serialize as _core_serialize
+from vobject._core import expand_rrule as _expand_rrule
+from vobject._core import to_jcal_json as _to_jcal_json
+from vobject.values import native_value
 
 __all__ = [
     "Component",
@@ -45,10 +48,13 @@ __all__ = [
     "Property",
     "Repair",
     "escape_text",
+    "expand_rrule",
+    "native_value",
     "parse",
     "parse_one",
     "serialize",
     "split_unescaped",
+    "to_jcal",
     "unescape_text",
 ]
 
@@ -119,6 +125,47 @@ def parse_one(
             f"expected exactly one top-level component, found {len(doc.components)}"
         )
     return doc.components[0]
+
+
+def expand_rrule(rule: str, dtstart, *, limit: int = 1000) -> list:
+    """Expand a recurrence rule from a start date or datetime.
+
+    ``dtstart`` may be a :class:`datetime.date`, :class:`datetime.datetime`
+    (naive or UTC), or a wire-format string (``20260722T160000``). Returns
+    dates or naive/UTC datetimes matching the start's form, up to ``limit``
+    instances.
+    """
+    import datetime as _dt
+
+    if isinstance(dtstart, _dt.datetime):
+        z = "Z" if dtstart.tzinfo is not None else ""
+        start = dtstart.strftime("%Y%m%dT%H%M%S") + z
+    elif isinstance(dtstart, _dt.date):
+        start = dtstart.strftime("%Y%m%d")
+    else:
+        start = dtstart
+
+    out = []
+    for t in _expand_rrule(rule, start, limit=limit):
+        if len(t) == 3:
+            out.append(_dt.date(*t))
+        else:
+            y, mo, d, h, mi, s, utc = t
+            out.append(
+                _dt.datetime(
+                    y, mo, d, h, mi, min(s, 59),
+                    tzinfo=_dt.timezone.utc if utc else None,
+                )
+            )
+    return out
+
+
+def to_jcal(component: Component, *, dialect: str | None = None):
+    """The jCal (RFC 7265) / jCard (RFC 7095) representation of a
+    component, as Python data structures."""
+    import json
+
+    return json.loads(_to_jcal_json(component, dialect))
 
 
 def serialize(
