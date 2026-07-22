@@ -612,9 +612,19 @@ fn parse_dialect(dialect: &str) -> PyResult<vobject_core::value::Dialect> {
 
 /// Expand an RRULE. Returns up to `limit` instances as tuples:
 /// (y, m, d) for date starts, (y, m, d, h, mi, s, utc) otherwise.
+/// `max_years` caps how many years past DTSTART are scanned;
+/// `max_empty_periods` caps consecutive periods yielding no instance
+/// (defaults are the core's ExpandLimits defaults).
 #[pyfunction]
-#[pyo3(signature = (rule, dtstart, limit = 1000))]
-fn expand_rrule(py: Python<'_>, rule: &str, dtstart: &str, limit: usize) -> PyResult<Py<PyAny>> {
+#[pyo3(signature = (rule, dtstart, limit = 1000, max_years = None, max_empty_periods = None))]
+fn expand_rrule(
+    py: Python<'_>,
+    rule: &str,
+    dtstart: &str,
+    limit: usize,
+    max_years: Option<i32>,
+    max_empty_periods: Option<usize>,
+) -> PyResult<Py<PyAny>> {
     use pyo3::conversion::IntoPyObjectExt;
     use vobject_core::rrule::{expand, ExpandLimits};
     use vobject_core::value::{DateOrDateTime, Recur};
@@ -622,8 +632,15 @@ fn expand_rrule(py: Python<'_>, rule: &str, dtstart: &str, limit: usize) -> PyRe
     let recur = Recur::parse(rule).map_err(|e| ParseError::new_err(e.to_string()))?;
     let start =
         DateOrDateTime::parse(dtstart).map_err(|e| ParseError::new_err(e.to_string()))?;
+    let mut limits = ExpandLimits::default();
+    if let Some(y) = max_years {
+        limits.max_years = y;
+    }
+    if let Some(n) = max_empty_periods {
+        limits.max_empty_periods = n;
+    }
     let iter =
-        expand(&recur, start, ExpandLimits::default()).map_err(|e| ParseError::new_err(e.to_string()))?;
+        expand(&recur, start, limits).map_err(|e| ParseError::new_err(e.to_string()))?;
     let out: Vec<Py<PyAny>> = iter
         .take(limit)
         .map(|d| match d {

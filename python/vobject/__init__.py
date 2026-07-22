@@ -244,13 +244,23 @@ def _rewrite_until_to_local(rule: str, tz) -> str:
     return re.sub(r"UNTIL=(\d{8}T\d{6})Z", repl, rule, flags=re.IGNORECASE)
 
 
-def expand_rrule(rule: str, dtstart, *, limit: int = 1000) -> list:
+def expand_rrule(
+    rule: str,
+    dtstart,
+    *,
+    limit: int = 1000,
+    max_years: int | None = None,
+    max_empty_periods: int | None = None,
+) -> list:
     """Expand a recurrence rule from a start date or datetime.
 
     ``dtstart`` may be a :class:`datetime.date`, a
     :class:`datetime.datetime` (naive, UTC, or zone-aware), or a
     wire-format string (``20260722T160000``). Returns values matching the
-    start's form, up to ``limit`` instances.
+    start's form, up to ``limit`` instances. ``max_years`` caps how far
+    past the start the scan may run (default 2200 years);
+    ``max_empty_periods`` caps consecutive periods yielding no instance
+    before a never-matching rule is abandoned (default 10,000).
 
     For a zone-aware start, expansion follows RFC 5545 §3.3.5 local-time
     semantics: the recurrence is generated on the local wall clock, then
@@ -278,7 +288,13 @@ def expand_rrule(rule: str, dtstart, *, limit: int = 1000) -> list:
         start = dtstart
 
     out = []
-    for t in _expand_rrule(rule, start, limit=limit):
+    for t in _expand_rrule(
+        rule,
+        start,
+        limit=limit,
+        max_years=max_years,
+        max_empty_periods=max_empty_periods,
+    ):
         if len(t) == 3:
             out.append(_dt.date(*t))
             continue

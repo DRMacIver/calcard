@@ -350,3 +350,51 @@ def test_calendar_journals():
     (journal,) = cal.journals
     assert journal.summary == "Dear diary"
     assert journal.start == dt.date(2026, 7, 22)
+
+
+def test_status_setter():
+    ev = vobject.parse(CAL).calendars[0].events[0]
+    assert ev.status is None
+    ev.status = "CANCELLED"
+    assert ev.status == "CANCELLED"
+    # A freshly parsed copy is unaffected.
+    assert vobject.parse(CAL).calendars[0].events[0].status is None
+
+
+def test_status_setter_serializes():
+    doc = vobject.parse(CAL)
+    ev = doc.calendars[0].events[0]
+    ev.status = "TENTATIVE"
+    assert "STATUS:TENTATIVE" in doc.serialize()
+
+
+def test_rrule_setter_round_trips():
+    doc = vobject.parse(CAL)
+    ev = doc.calendars[0].events[0]
+    ev.rrule = "FREQ=DAILY;COUNT=4"
+    assert ev.rrule == "FREQ=DAILY;COUNT=4"
+    assert len(ev.occurrences()) == 4
+    assert "RRULE:FREQ=DAILY;COUNT=4" in doc.serialize()
+
+
+def test_rrule_setter_creates_property():
+    doc = vobject.parse(
+        "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n"
+        "DTSTART:20260101T090000\r\n"
+        "END:VEVENT\r\nEND:VCALENDAR\r\n"
+    )
+    ev = doc.calendars[0].events[0]
+    assert ev.rrule is None
+    ev.rrule = "FREQ=YEARLY;COUNT=2"
+    assert len(ev.occurrences()) == 2
+
+
+def test_rrule_setter_rejects_invalid_rules():
+    import pytest
+
+    ev = vobject.parse(CAL).calendars[0].events[0]
+    for bad in ["FREQ=BOGUS", "COUNT=3", "", "FREQ=DAILY;INTERVAL=0"]:
+        with pytest.raises(vobject.ParseError):
+            ev.rrule = bad
+    # The original rule is untouched after a failed assignment.
+    assert ev.rrule == "FREQ=WEEKLY;COUNT=3"

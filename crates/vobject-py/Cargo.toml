@@ -11,5 +11,8 @@ name = "_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.29.0", features = ["extension-module"] }
+# abi3-py310: build against the stable ABI so one wheel per platform
+# covers every CPython >= 3.10, instead of one wheel per interpreter
+# version.
+pyo3 = { version = "0.29.0", features = ["extension-module", "abi3-py310"] }
 vobject-core = { path = "../vobject-core" }

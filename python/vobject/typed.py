@@ -178,10 +178,30 @@ class _StartEndMixin(TypedComponent):
     def end(self, value: _dt.date | _dt.datetime) -> None:
         self._set_datetime(self._END_NAME, value)
 
+    status = property(
+        lambda self: self.text("STATUS"),
+        lambda self, v: self.set_text("STATUS", v),
+    )
+
     @property
     def rrule(self) -> str | None:
         prop = self.component.prop("RRULE")
         return prop.value if prop is not None else None
+
+    @rrule.setter
+    def rrule(self, value: str) -> None:
+        from vobject._core import typed_value
+
+        # Validate before storing: an invalid rule raises ParseError and
+        # leaves the component untouched.
+        typed_value(Property("RRULE", value), self.DIALECT)
+        prop = self.component.prop("RRULE")
+        if prop is None:
+            self.component.children = self.component.children + [
+                Property("RRULE", value)
+            ]
+        else:
+            prop.value = value
 
     def occurrences(self, *, limit: int = 1000) -> list:
         """Expand this component's RRULE from its start (start alone if
@@ -213,8 +233,6 @@ class Event(_StartEndMixin):
         lambda self: self.text("LOCATION"),
         lambda self, v: self.set_text("LOCATION", v),
     )
-    status = property(lambda self: self.text("STATUS"))
-
     @property
     def alarms(self) -> list[Alarm]:
         return [Alarm(c) for c in self.component.comps("VALARM")]
