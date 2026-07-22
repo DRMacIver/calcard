@@ -17,6 +17,12 @@ pub const FOLD_WIDTH: usize = 75;
 /// after the fold marker) so that progress is always made; multi-byte
 /// characters may force a line to exceed a tiny width since characters are
 /// never split.
+///
+/// A folded physical line never ends with `=`: on a property carrying
+/// vCard 2.1 QUOTED-PRINTABLE data, `=` before a line break is a QP soft
+/// break, and a lenient reparse of such a fold would join it as one —
+/// deleting the `=` and corrupting the value. Shifting the fold point one
+/// character left costs an octet of that line and keeps round trips exact.
 pub fn fold_into(out: &mut String, line: &str, width: usize, line_ending: &str) {
     let width = width.max(2);
     let mut budget = width;
@@ -24,10 +30,18 @@ pub fn fold_into(out: &mut String, line: &str, width: usize, line_ending: &str) 
     for c in line.chars() {
         let len = c.len_utf8();
         if current.len() + len > budget && !current.is_empty() {
+            let mut carried = 0usize;
+            while current.len() > 1 && current.ends_with('=') {
+                current.pop();
+                carried += 1;
+            }
             out.push_str(&current);
             out.push_str(line_ending);
             out.push(' ');
             current.clear();
+            for _ in 0..carried {
+                current.push('=');
+            }
             budget = width - 1; // the fold marker space consumed one octet
         }
         current.push(c);

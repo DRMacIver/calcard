@@ -19,8 +19,7 @@ Basic usage::
             print(event.prop("SUMMARY").value)
     out = doc.serialize()
 
-Compatibility layers for py-vobject and icalendar live in
-:mod:`calcard.compat` and are only activated when imported.
+Porting from py-vobject or icalendar? See PORTING.md in the repository.
 """
 
 from __future__ import annotations

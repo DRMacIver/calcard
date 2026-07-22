@@ -31,3 +31,11 @@ Vendored by `conformance/tools/vendor.py`. Do not edit files under
 - standalone fixtures -> `samples/` (3 files)
 - (the bulk of sabre's test data is embedded in PHP test classes; tools/extract_sabre.py extracts it into `sabre-vobject/extracted/`)
 
+
+## pyvobject
+
+- Repository: https://github.com/py-vobject/vobject
+- License: Apache-2.0 (see `fixtures/pyvobject/LICENSE`)
+- real-world regression documents (radicale issues) extracted from the
+  string constants in upstream `tests/test_compatibility.py` -> `*.ics`
+  (8 files; maintained by hand, not by vendor.py)

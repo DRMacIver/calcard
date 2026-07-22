@@ -29,9 +29,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Build and install
         run: uv sync
-      - name: Clean-API test suite
+      - name: Test suite
         run: uv run pytest -q tests
-      - name: Upstream py-vobject suite
-        run: uv run pytest -q tests_upstream/pyvobject
-      - name: Upstream icalendar suite
-        run: uv run pytest -q python/calcard/compat/icalendar/tests

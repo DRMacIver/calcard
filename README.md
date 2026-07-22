@@ -56,21 +56,17 @@ let out = write_document(&parsed.components, &Default::default());
 | --- | --- |
 | `crates/vobject-core` | Pure-Rust implementation (no Python dependencies) |
 | `crates/vobject-py` | PyO3 bindings (`calcard._core`) |
-| `python/calcard` | The Python package (clean API; compat layers under `calcard/compat/`) |
-| `python/calcard/compat/icalendar` | Vendored icalendar compat package, incl. its upstream test suite |
+| `python/calcard` | The Python package |
 | `tests/` | Python test suite (pytest + Hypothesis) |
-| `tests_upstream/` | Vendored py-vobject upstream test suite |
 | `conformance/` | Vendored reference test data and tooling |
 | `DESIGN.md` | Architecture and roadmap |
+| `PORTING.md` | Porting notes for py-vobject and icalendar users |
 
 ## Development
 
-Rust: `cargo test`. Python: `uv sync && uv run pytest` (the clean-API
-suite; the compatibility suites run with
-`uv run pytest tests_upstream/pyvobject python/calcard/compat/icalendar/tests`). After
-changing Rust code, rebuild the extension with
-`uv sync --reinstall-package calcard`. CI (`.github/workflows/ci.yml`)
-runs all four suites.
+Rust: `cargo test`. Python: `uv sync && uv run pytest`. After changing
+Rust code, rebuild the extension with `uv sync --reinstall-package
+calcard`. CI (`.github/workflows/ci.yml`) runs both.
 
 ## Typed views and recurrence
 
@@ -91,29 +87,17 @@ against libical's icalrecur expectations, including RSCALE (RFC 7529)
 non-Gregorian rules via ICU4X and RFC 5545 DST semantics for zone-aware
 starts.
 
-## Compatibility layers
+## Porting from py-vobject or icalendar
 
-`calcard.compat` contains API-compatible adaptations of two established
-libraries, and both upstream test suites run against them:
-
-- **py-vobject** (`calcard.compat.pyvobject`) — `readOne` /
-  `readComponents`, behaviors, `base` / `icalendar` / `vcard` modules, and
-  the `calcard-ics-diff` / `calcard-change-tz` scripts (58/58 upstream
-  tests; requires the `compat` extra).
-- **icalendar** (`calcard.compat.icalendar`) — the full icalendar 7.2.2
-  API: `Calendar`, `Event`, the `v*` property types, jCal, alarms
-  (15,972 upstream tests).
-
-Importing either compat package installs an import alias so existing code
-written against `vobject` / `icalendar` runs unchanged in that process.
-The aliasing is opt-in by import: installing calcard never shadows a
-separately installed real py-vobject or icalendar distribution until you
-import `calcard.compat`. See `DESIGN.md` for the compat-layer policy.
+See `PORTING.md` for a mapping of the common py-vobject and icalendar
+idioms onto the calcard API. Useful coverage from py-vobject's test
+suite is ported in `tests/test_ported_pyvobject.py`, with its real-world
+regression documents kept under `conformance/fixtures/pyvobject/`.
 
 ## Status
 
 Feature-complete: lossless strict/lenient syntax layer, typed values,
 jCal/jCard and xCal/xCard, RRULE expansion (including RSCALE and DST-aware
-zone expansion), clean typed Python API, and both compatibility layers,
-all backed by the cross-implementation conformance corpus. `DESIGN.md`
-tracks the roadmap and remaining ideas.
+zone expansion), and a clean typed Python API, all backed by the
+cross-implementation conformance corpus. `DESIGN.md` tracks the roadmap
+and remaining ideas.

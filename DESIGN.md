@@ -20,8 +20,8 @@ as a standalone Rust crate with Python bindings.
    the Python layer. Key properties: parse∘serialize round-trips,
    serialize∘parse round-trips on the model, folding/unfolding inverses,
    escaping inverses, and "never panics on arbitrary bytes".
-5. **Clean modern Python API** as the primary interface, plus compatibility
-   modules that can run the py-vobject and icalendar test suites.
+5. **Clean modern Python API** as the only interface, with porting notes
+   (PORTING.md) for users coming from py-vobject or icalendar.
 
 ## Layout
 
@@ -31,17 +31,10 @@ crates/vobject-core/        pure-Rust implementation, no Python deps
 crates/vobject-py/          PyO3 bindings (cdylib, built by maturin)
 python/calcard/             Python package: clean API (typed.py, values.py,
                             __init__.py)
-python/calcard/compat/      compatibility layers and the import-alias
-                            machinery (install()/mirror())
-  pyvobject/                py-vobject compat modules (base.py, ...)
-  icalendar/                vendored icalendar compat package (its upstream
-                            suite ships in .../icalendar/tests; the
-                            src/icalendar/tests symlink keeps upstream
-                            repo-relative fixture paths working)
 tests/                      Python test suite (pytest + Hypothesis)
-tests_upstream/pyvobject/   vendored py-vobject test suite
 conformance/fixtures/       vendored test data from reference implementations
 conformance/tools/          scripts that fetch/refresh vendored data
+PORTING.md                  porting notes for py-vobject and icalendar users
 ```
 
 ## Rust core (`vobject-core`)
@@ -82,9 +75,7 @@ polite values).
 Distribution and import name `calcard`, built with maturin (mixed
 Rust/Python layout). `calcard._core` is the compiled module (abi3, one
 wheel per platform); the public package is Python. The wheel ships only
-the `calcard` top-level package — compatibility with py-vobject and
-icalendar is provided under `calcard.compat` via opt-in import aliasing,
-never by squatting those distributions' names.
+the `calcard` top-level package.
 
 - `calcard` — the clean modern API:
   - `calcard.parse(text_or_bytes) -> Document`, `calcard.parse_one(...)`.
@@ -96,16 +87,6 @@ never by squatting those distributions' names.
     Python types; the lossless `Component`/`Property` model underneath.
   - `document.serialize() -> str`; `to_jcal`/`from_jcal`,
     `to_xcal`/`from_xcal`, `expand_rrule`.
-- py-vobject compatibility lives in `calcard.compat.pyvobject` (the
-  vendored upstream suite runs from `tests_upstream/pyvobject`).
-- icalendar compatibility is `calcard.compat.icalendar` (adapted from
-  upstream 7.2.2; its own suite runs against it in place).
-- Importing either compat package installs a `sys.meta_path` alias so the
-  upstream import names (`vobject`, `icalendar`) resolve to the compat
-  packages — module objects are shared between the two names, canonical
-  identity is preserved, and already-loaded submodules are mirrored into
-  `sys.modules` so alias imports are cache hits (`calcard.compat.install`
-  / `.mirror`; `.uninstall` reverses it).
 
 ## Testing strategy
 
@@ -115,10 +96,10 @@ never by squatting those distributions' names.
    (incl. icalrecur expansion expectations), ical.js (parser cases with
    expected jCal), sabre/vobject (edge cases, broken inputs). Run from
    both Rust and Python.
-4. **Python tests** with pytest + Hypothesis, including cross-checks of the
-   Python-visible behavior against the compat targets.
-5. **Upstream suites**: harnesses that fetch py-vobject and icalendar at
-   pinned versions and run their own tests against our compat modules.
+4. **Python tests** with pytest + Hypothesis, including clean-API ports
+   of the useful coverage from py-vobject's test suite
+   (tests/test_ported_pyvobject.py, with its real-world regression
+   documents under conformance/fixtures/pyvobject/).
 
 ## Roadmap / status
 
@@ -140,10 +121,7 @@ never by squatting those distributions' names.
 - [x] PyO3 bindings; clean Python API with typed components
       (Calendar/Event/Todo/Card views, native values, occurrences)
 - [x] Hypothesis tests for Python layer
-- [x] py-vobject compat (drop-in `vobject.base` etc.): upstream suite
-      passes 58/58 (vendored under tests_upstream/pyvobject)
-- [x] icalendar compat (drop-in `icalendar` package): upstream suite
-      passes 15,972 tests (ships inside the compat package)
+- [x] py-vobject and icalendar compat layers (later dropped — see below)
 - [x] RSCALE (RFC 7529) recurrence via ICU4X calendars: 34/34 libical
       RSCALE cases (one Chinese leap-month case compared on the agreed
       prefix — ICU4C and ICU4X diverge on century-out lunar predictions)
@@ -152,22 +130,17 @@ never by squatting those distributions' names.
 - [x] xCal (RFC 6321) / xCard (RFC 6351), corpus-validated to a
       conversion fixed point
 
-## Compatibility layer policy
+## Compatibility layers (dropped)
 
-The compat layers are adapted from their upstream projects (attributed in
-LICENSES/ and in file headers / VENDORED-NOTICE.txt): upstream code is the
-authoritative specification of the behavior their test suites check.
-Deliberate upstream *semantics* are preserved even where the core differs
-(icalendar's unfold keeps lone CRs, never joins vCard 2.1 QP soft breaks,
-and refuses to fold after a trailing escape); delegation to the Rust core
-is done where behavior is provably identical (py-vobject's standard-width
-folding). Obvious upstream *defects* are fixed rather than reproduced —
-debug prints in library code, dead py2 fallbacks that churned exceptions,
-a py3 `filter()` iterator stored where a list was needed, invalid HTML
-attribute syntax in hcalendar output, and the ics_diff engine dropping
-right-side components — each with regression tests in `tests/`. The
-robust, Rust-backed path is the clean `vobject` API; the compat layers
-exist to run existing code and its tests unchanged.
+Earlier revisions shipped API-compatible adaptations of py-vobject and
+icalendar that ran both upstream test suites (58 and 15,972 tests). They
+were dropped in favour of PORTING.md: the maintenance and licensing
+surface of two vendored codebases wasn't worth it next to a clean API
+that covers the same formats. The useful test coverage was ported to the
+clean API, and the real-world regression documents from py-vobject's
+suite are kept as conformance fixtures (Apache-2.0, attributed in
+conformance/fixtures/pyvobject/). The main library is MIT-licensed;
+vendored *test data* keeps its own licenses under conformance/.
 
 ## Remaining ideas (post-1.0)
 

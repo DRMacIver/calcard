@@ -67,14 +67,16 @@ fn structured_field_names(prop_name: &str, dialect: Dialect) -> Option<&'static 
 type W = Writer<Vec<u8>>;
 
 /// xCal element names come from vobject names; only the RFC name grammar
-/// (plus '.' for iCalendar group prefixes) produces well-formed XML.
-/// Lenient wire parsing can retain names outside it, which cannot be
-/// represented in xCal and must be rejected rather than emitted broken.
+/// — widened by '_' (a valid XML NameChar that real-world lenient data
+/// uses, e.g. `oppo_recent_call`) and '.' for iCalendar group prefixes —
+/// produces well-formed XML. Lenient wire parsing can retain names
+/// outside it, which cannot be represented in xCal and must be rejected
+/// rather than emitted broken.
 fn check_name(name: &str) -> Result<(), XmlError> {
     let mut chars = name.chars();
     let valid = match chars.next() {
         Some(c) if c.is_ascii_alphabetic() => {
-            chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
+            chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.' || c == '_')
         }
         _ => false,
     };

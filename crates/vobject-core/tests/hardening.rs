@@ -463,3 +463,51 @@ fn rscale_chinese_monthly_byday_is_sane() {
         prev = Some(d.to_ordinal());
     }
 }
+
+// --- Folding must never create a quoted-printable soft-break lookalike ---
+
+#[test]
+fn folding_never_splits_after_equals() {
+    use vobject_core::{write_document, Component, Param, Property};
+    // A QP-encoded value long enough to fold. Sweeping the property-name
+    // length moves the fold point across every offset of the value, so
+    // some iteration folds right after an '=' — where, on lenient
+    // reparse, the QP joiner would eat the '=' as a soft break and
+    // corrupt the value (found via py-vobject's radicale_1238 documents).
+    let value: String = std::iter::repeat("=E5=8C=97=E4=BA=AC")
+        .take(10)
+        .collect();
+    for pad in 0..8 {
+        let mut prop = Property::new(format!("X{}", "A".repeat(pad)), &value);
+        prop.params.push(Param::new("ENCODING", "QUOTED-PRINTABLE"));
+        let mut comp = Component::new("VCARD");
+        comp.push_property(prop);
+
+        let wire = write_document(&[comp.clone()], &Default::default());
+        for physical in wire.split("\r\n") {
+            assert!(
+                !physical.ends_with('='),
+                "pad {pad}: folded line ends with '=': {physical:?}"
+            );
+        }
+        let parsed = parse(&wire, &ParseOptions::lenient()).unwrap();
+        assert_eq!(
+            parsed.components,
+            vec![comp],
+            "pad {pad}: round trip corrupted the value"
+        );
+    }
+}
+
+#[test]
+fn xcal_underscore_names_round_trip() {
+    use vobject_core::{Component, Property};
+    // Underscores are valid XML NameChars; real-world vCards use them
+    // (py-vobject's radicale corpus has `oppo_recent_call` properties).
+    let mut comp = Component::new("VCARD");
+    comp.push_property(Property::new("oppo_recent_call", "1"));
+    let xml = vobject_core::xcal::to_xml(&[comp.clone()]).unwrap();
+    let back = vobject_core::xcal::from_xml(&xml).unwrap();
+    let prop = back[0].properties().next().unwrap();
+    assert!(prop.name.eq_ignore_ascii_case("oppo_recent_call"), "{prop:?}");
+}

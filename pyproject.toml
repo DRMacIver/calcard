@@ -7,8 +7,8 @@ name = "calcard"
 version = "0.1.0"
 description = "Robust iCalendar and vCard parsing and serialization, backed by a Rust core"
 readme = "README.md"
-license = "MIT AND Apache-2.0 AND BSD-2-Clause"
-license-files = ["LICENSE", "LICENSES/*"]
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "David R. MacIver", email = "david@drmaciver.com" }]
 keywords = ["icalendar", "vcard", "ical", "rfc5545", "rfc6350", "jcal", "xcal", "rrule"]
 requires-python = ">=3.10"
@@ -30,32 +30,17 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/DRMacIver/vobject"
 
-[project.optional-dependencies]
-compat = [
-    "python-dateutil>=2.9.0",
-    "pytz>=2025.2",
-]
-
-[project.scripts]
-calcard-ics-diff = "calcard.compat.pyvobject.ics_diff:main"
-calcard-change-tz = "calcard.compat.pyvobject.change_tz:main"
-
 [tool.maturin]
 python-source = "python"
 module-name = "calcard._core"
 python-packages = ["calcard"]
 manifest-path = "crates/vobject-py/Cargo.toml"
-# The icalendar compat package deliberately ships its upstream test suite
-# (see DESIGN.md) and the upstream_docs tree those tests doctest against,
-# but not upstream's fuzz corpus.
-exclude = ["python/calcard/compat/icalendar/fuzzing/**"]
 
 [dependency-groups]
 dev = [
     "pytest>=8",
     "hypothesis>=6",
     "maturin>=1.11",
-    "python-dateutil>=2.9.0",
     "pytz>=2025.2",
     "tzdata>=2026.3",
 ]

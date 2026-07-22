@@ -19,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This distribution also contains code adapted from other projects:
-
-- python/calcard/compat/pyvobject/ is adapted from py-vobject
-  (Apache License 2.0); see LICENSES/py-vobject-LICENSE.
-- python/calcard/compat/icalendar/ is adapted from collective/icalendar
-  (BSD 2-Clause); see LICENSES/icalendar-LICENSE.

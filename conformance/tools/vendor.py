@@ -196,6 +196,8 @@ def main() -> int:
         "",
         "Vendored by `conformance/tools/vendor.py`. Do not edit files under",
         "`conformance/fixtures/` by hand; re-run the script instead.",
+        "(Exception: `fixtures/pyvobject/` is maintained by hand — see the",
+        "section appended below.)",
         "",
     ]
 
@@ -219,6 +221,16 @@ def main() -> int:
             provenance.append("")
             print(f"{source.name}: done ({commit[:12]})")
 
+    provenance += [
+        "## pyvobject",
+        "",
+        "- Repository: https://github.com/py-vobject/vobject",
+        "- License: Apache-2.0 (see `fixtures/pyvobject/LICENSE`)",
+        "- real-world regression documents (radicale issues) extracted from the",
+        "  string constants in upstream `tests/test_compatibility.py` -> `*.ics`",
+        "  (8 files; maintained by hand, not by vendor.py)",
+        "",
+    ]
     (ROOT / "PROVENANCE.md").write_text("\n".join(provenance) + "\n")
     print("wrote", ROOT / "PROVENANCE.md")
     return 0
