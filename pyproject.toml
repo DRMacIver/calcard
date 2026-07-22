@@ -28,6 +28,7 @@ change_tz = "vobject.change_tz:main"
 [tool.maturin]
 python-source = "python"
 module-name = "vobject._core"
+python-packages = ["vobject", "icalendar"]
 manifest-path = "crates/vobject-py/Cargo.toml"
 
 [dependency-groups]
@@ -37,6 +38,7 @@ dev = [
     "maturin>=1.11",
     "python-dateutil>=2.9.0",
     "pytz>=2025.2",
+    "tzdata>=2026.3",
 ]
 
 [tool.pytest.ini_options]
