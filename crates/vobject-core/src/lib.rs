@@ -39,6 +39,7 @@ pub mod fold;
 pub mod lines;
 pub mod model;
 pub mod parse;
+pub mod rrule;
 pub mod value;
 pub mod write;
 
