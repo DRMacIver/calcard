@@ -24,21 +24,42 @@ except ImportError:  # pragma: no cover - zoneinfo is stdlib on >=3.9
     ZoneInfo = None  # type: ignore[assignment]
 
 
-def _tzinfo_for(prop: Property) -> _dt.tzinfo | None:
-    """Resolve a TZID parameter to a zoneinfo timezone if possible.
+def _tzinfo_for(
+    prop: Property, timezones: dict[str, _dt.tzinfo] | None = None
+) -> _dt.tzinfo | None:
+    """Resolve a TZID parameter to a tzinfo.
 
-    Returns ``None`` when there is no TZID or when the TZID names no
-    known zone; datetimes built from an unresolvable TZID therefore come
-    back naive (local wall time, zone information dropped).
+    Precedence: the host's zoneinfo for names it knows (real-world
+    in-document VTIMEZONE copies are often stale), then the document's
+    own VTIMEZONE definitions (``timezones``, a TZID -> tzinfo map).
+    When both fail, a :class:`TimezoneResolutionWarning` is emitted and
+    ``None`` is returned: datetimes come back naive (local wall time,
+    zone information dropped).
     """
     for param in prop.params:
         if param.name.upper() == "TZID" and param.values:
-            tzid = param.values[0].lstrip("/")
+            raw = param.values[0]
+            tzid = raw.lstrip("/")
             if ZoneInfo is not None:
                 try:
                     return ZoneInfo(tzid)
                 except (ZoneInfoNotFoundError, ValueError, KeyError):
-                    return None
+                    pass
+            if timezones is not None:
+                tz = timezones.get(raw) or timezones.get(tzid)
+                if tz is not None:
+                    return tz
+            import warnings
+
+            from calcard.timezones import TimezoneResolutionWarning
+
+            warnings.warn(
+                f"TZID {raw!r} is not a known timezone and no VTIMEZONE in the "
+                "document defines it; interpreting as naive local time",
+                TimezoneResolutionWarning,
+                stacklevel=3,
+            )
+            return None
     return None
 
 
@@ -65,16 +86,23 @@ def _to_time(t: tuple) -> _dt.time:
     )
 
 
-def native_value(prop: Property, dialect: str = "icalendar") -> Any:
+def native_value(
+    prop: Property,
+    dialect: str = "icalendar",
+    timezones: dict[str, _dt.tzinfo] | None = None,
+) -> Any:
     """The property's value as a native Python object.
 
     Raises ``ParseError`` (via the core) if the raw value does not parse as
-    the property's resolved type. A TZID parameter naming a zone that
-    zoneinfo cannot resolve yields naive datetimes (the wall time is kept,
-    the unresolvable zone is dropped).
+    the property's resolved type. ``timezones`` is an optional
+    TZID -> tzinfo map (built from the document's VTIMEZONE components by
+    :func:`calcard.timezones.timezone_map`; the typed views supply it
+    automatically) consulted for TZIDs zoneinfo cannot resolve; a TZID
+    neither can resolve warns and yields naive datetimes (the wall time is
+    kept, the unresolvable zone is dropped).
     """
     kind, payload = _typed_value(prop, dialect)
-    tz = _tzinfo_for(prop)
+    tz = _tzinfo_for(prop, timezones)
 
     if kind == "text":
         return payload[0] if len(payload) == 1 else payload

@@ -96,13 +96,15 @@ bundled one and the host's) disagreeing inside one process. Timezone
 parameters through the host's `zoneinfo` and implements RFC 5545
 local-time DST semantics for zone-aware recurrence expansion.
 
-Current limitation: a `TZID` that `zoneinfo` cannot resolve currently
-yields a naive datetime, even when the document carries its own
-`VTIMEZONE` definition for it. Planned: fall back to interpreting the
-in-document `VTIMEZONE` (the RFC-conformant, database-free path — the
-core's RRULE engine can already expand STANDARD/DAYLIGHT rules), keeping
-`zoneinfo` preferred for names it knows, since real-world `VTIMEZONE`
-copies are often stale.
+A `TZID` that `zoneinfo` cannot resolve (Outlook-style names, custom
+TZIDs) is interpreted through the document's own `VTIMEZONE` component —
+the RFC-conformant, database-free path: `calcard.timezones` builds a
+real `tzinfo` (PEP 495 fold semantics included) by expanding the
+STANDARD/DAYLIGHT onset rules through the core RRULE engine, validated
+property-based against host zoneinfo over libical's generated zone
+files. `zoneinfo` stays preferred for names it knows, since real-world
+`VTIMEZONE` copies are often stale. A TZID neither can resolve emits a
+`TimezoneResolutionWarning` and yields a naive datetime.
 
 ## Porting from py-vobject or icalendar
 

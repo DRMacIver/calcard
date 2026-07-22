@@ -107,8 +107,13 @@ def test_boolean_values():
     assert native_value(prop_of("X-B;VALUE=BOOLEAN:FALSE")) is False
 
 
-def test_unresolvable_tzid_yields_naive_datetime():
-    got = native_value(prop_of("DTSTART;TZID=Not/AZone:20260722T160000"))
+def test_unresolvable_tzid_warns_and_yields_naive_datetime():
+    import pytest
+
+    from calcard import TimezoneResolutionWarning
+
+    with pytest.warns(TimezoneResolutionWarning, match="Not/AZone"):
+        got = native_value(prop_of("DTSTART;TZID=Not/AZone:20260722T160000"))
     assert got == [dt.datetime(2026, 7, 22, 16, 0)]
     assert got[0].tzinfo is None
 

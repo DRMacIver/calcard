@@ -61,12 +61,16 @@ class TypedComponent:
     NAME: str = ""
     DIALECT = "icalendar"
 
-    def __init__(self, component: Component):
+    def __init__(self, component: Component, timezones: dict | None = None):
         if self.NAME and not component.name.upper() == self.NAME:
             raise ValueError(
                 f"expected a {self.NAME} component, got {component.name}"
             )
         self.component = component
+        # TZID -> tzinfo map from the enclosing document's VTIMEZONEs;
+        # supplied by the parent Calendar view, or built lazily when this
+        # view is itself a Calendar.
+        self._timezones = timezones
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.component!r})"
@@ -88,7 +92,7 @@ class TypedComponent:
         prop = self.component.prop(name)
         if prop is None:
             return default
-        value = native_value(prop, self.DIALECT)
+        value = native_value(prop, self.DIALECT, timezones=self._timezones)
         return value
 
     def set_text(self, name: str, value: str) -> None:
@@ -108,7 +112,7 @@ class TypedComponent:
         prop = self.component.prop(name)
         if prop is None:
             return None
-        value = native_value(prop, self.DIALECT)
+        value = native_value(prop, self.DIALECT, timezones=self._timezones)
         return value[0] if isinstance(value, list) and value else value
 
     def _set_datetime(self, name: str, value: _dt.date | _dt.datetime) -> None:
@@ -238,7 +242,7 @@ class Event(_StartEndMixin):
     )
     @property
     def alarms(self) -> list[Alarm]:
-        return [Alarm(c) for c in self.component.comps("VALARM")]
+        return [Alarm(c, self._timezones) for c in self.component.comps("VALARM")]
 
 
 class Todo(_StartEndMixin):
@@ -293,21 +297,28 @@ class Timezone(TypedComponent):
 class Calendar(TypedComponent):
     NAME = "VCALENDAR"
 
+    def _tz_map(self) -> dict:
+        if self._timezones is None:
+            from calcard.timezones import timezone_map
+
+            self._timezones = timezone_map(self.component)
+        return self._timezones
+
     prodid = property(lambda self: self.text("PRODID"))
     version = property(lambda self: self.text("VERSION"))
     method = property(lambda self: self.text("METHOD"))
 
     @property
     def events(self) -> list[Event]:
-        return [Event(c) for c in self.component.comps("VEVENT")]
+        return [Event(c, self._tz_map()) for c in self.component.comps("VEVENT")]
 
     @property
     def todos(self) -> list[Todo]:
-        return [Todo(c) for c in self.component.comps("VTODO")]
+        return [Todo(c, self._tz_map()) for c in self.component.comps("VTODO")]
 
     @property
     def journals(self) -> list[Journal]:
-        return [Journal(c) for c in self.component.comps("VJOURNAL")]
+        return [Journal(c, self._tz_map()) for c in self.component.comps("VJOURNAL")]
 
     @property
     def timezones(self) -> list[Timezone]:
