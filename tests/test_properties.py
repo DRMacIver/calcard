@@ -2,10 +2,14 @@
 
 These mirror the hegel properties on the Rust core, exercised through the
 bindings: totality of lenient parsing, the zero-repairs-iff-strict
-invariant, serialization faithfulness, and escaping inverses.
+invariant, serialization faithfulness, and escaping inverses; plus
+round-trip properties of the typed datetime setters.
 """
 
-from hypothesis import given, settings, strategies as st
+import datetime as dt
+from zoneinfo import ZoneInfo
+
+from hypothesis import assume, given, settings, strategies as st
 
 import vobject
 
@@ -134,3 +138,112 @@ def test_split_unescaped_inverts_escaped_join(pieces):
 @given(st.binary(max_size=300))
 def test_bytes_input_is_total(data):
     vobject.parse(data)  # BOM/UTF-8/Latin-1 handling must never raise
+
+
+# ---------------------------------------------------------------------------
+# Typed datetime setters
+
+_EVENT_SHELL = (
+    "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:x\r\n"
+    "END:VEVENT\r\nEND:VCALENDAR\r\n"
+)
+
+_naive_datetimes = st.datetimes(
+    min_value=dt.datetime(1900, 1, 1),
+    max_value=dt.datetime(2100, 12, 31, 23, 59, 59),
+).map(lambda d: d.replace(microsecond=0, fold=0))
+
+_fixed_offsets = st.integers(min_value=-14 * 60, max_value=14 * 60).map(
+    lambda minutes: dt.timezone(dt.timedelta(minutes=minutes))
+)
+
+_named_zones = st.sampled_from(
+    [
+        "Europe/London",
+        "America/New_York",
+        "Asia/Kolkata",
+        "Pacific/Auckland",
+        "Australia/Lord_Howe",
+    ]
+).map(ZoneInfo)
+
+_tzinfos = st.one_of(
+    st.none(), st.just(dt.timezone.utc), _fixed_offsets, _named_zones
+)
+
+
+@st.composite
+def _wire_representable_datetimes(draw):
+    """Naive / UTC / ZoneInfo / fixed-offset datetimes whose instant the
+    wire format can represent (it carries wall time plus zone or offset,
+    so ambiguous and imaginary local times of named zones are skipped)."""
+    naive = draw(_naive_datetimes)
+    tz = draw(_tzinfos)
+    if tz is None:
+        return naive
+    value = naive.replace(tzinfo=tz)
+    assume(value.utcoffset() == value.replace(fold=1).utcoffset())
+    round_trip = value.astimezone(dt.timezone.utc).astimezone(tz)
+    assume(round_trip.replace(tzinfo=None) == naive)
+    return value
+
+
+@given(_wire_representable_datetimes())
+@settings(max_examples=200)
+def test_typed_datetime_setter_preserves_the_moment(value):
+    doc = vobject.parse(_EVENT_SHELL)
+    event = doc.calendars[0].events[0]
+    event.start = value
+    reparsed = vobject.parse(doc.serialize(), strict=True)
+    for got in (event.start, reparsed.calendars[0].events[0].start):
+        if value.tzinfo is None:
+            # Naive stays floating with the same wall time.
+            assert got == value
+            assert got.tzinfo is None
+        else:
+            # Aware never silently changes the instant.
+            assert got.tzinfo is not None
+            assert got == value
+
+
+_extra_params = st.lists(
+    st.tuples(
+        st.sampled_from(
+            ["X-FOO", "X-BAR", "X-RELATED", "LANGUAGE", "X-APPLE-TRAVEL"]
+        ),
+        st.lists(
+            st.text(
+                alphabet="abcdefghijklmnopqrstuvwxyz0123456789-",
+                min_size=1,
+                max_size=8,
+            ),
+            min_size=1,
+            max_size=3,
+        ),
+    ),
+    max_size=4,
+    unique_by=lambda item: item[0],
+)
+
+
+@given(_extra_params, _wire_representable_datetimes())
+@settings(max_examples=200)
+def test_datetime_setter_never_loses_unmanaged_params(extra, value):
+    doc = vobject.parse(_EVENT_SHELL)
+    event = doc.calendars[0].events[0]
+    event.component.children = event.component.children + [
+        vobject.Property(
+            "DTEND",
+            "20260722T160000Z",
+            params=[vobject.Param(name, values) for name, values in extra],
+        )
+    ]
+    event.end = value
+    prop = event.component.prop("DTEND")
+    assert {p.name: tuple(p.values) for p in prop.params if p.name in dict(extra)} == {
+        name: tuple(values) for name, values in extra
+    }
+    # The managed parameters appear at most once each.
+    names = [p.name.upper() for p in prop.params]
+    assert names.count("TZID") <= 1
+    assert names.count("VALUE") <= 1

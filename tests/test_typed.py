@@ -128,6 +128,89 @@ def test_todo_due():
     assert todo.due == dt.datetime(2026, 8, 1, 12, 0, tzinfo=dt.timezone.utc)
 
 
+def test_fixed_offset_datetime_preserves_instant():
+    # Regression: an aware tzinfo without a zone name (e.g. a fixed
+    # timezone(timedelta)) used to be written as floating local time,
+    # silently changing the instant.
+    doc = vobject.parse(CAL)
+    event = doc.calendars[0].events[0]
+    ist = dt.timezone(dt.timedelta(hours=5, minutes=30))
+    value = dt.datetime(2026, 7, 22, 10, 0, tzinfo=ist)
+    event.start = value
+    assert event.start == value
+    out = doc.serialize()
+    assert "DTSTART:20260722T043000Z\r\n" in out
+    again = vobject.parse(out, strict=True)
+    assert again.calendars[0].events[0].start == value
+
+
+def test_negative_fixed_offset_datetime_preserves_instant():
+    doc = vobject.parse(CAL)
+    event = doc.calendars[0].events[0]
+    value = dt.datetime(
+        2026, 1, 2, 1, 30, tzinfo=dt.timezone(dt.timedelta(hours=-7))
+    )
+    event.end = value
+    assert event.end == value
+    assert "DTEND:20260102T083000Z\r\n" in doc.serialize()
+
+
+def test_todo_due_setter_fixed_offset_round_trips():
+    text = (
+        "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\n"
+        "SUMMARY:Fix\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+    )
+    doc = vobject.parse(text)
+    todo = doc.calendars[0].todos[0]
+    value = dt.datetime(
+        2026, 8, 1, 12, 0, tzinfo=dt.timezone(dt.timedelta(hours=3))
+    )
+    todo.due = value
+    assert todo.due == value
+    again = vobject.parse(doc.serialize(), strict=True)
+    assert again.calendars[0].todos[0].due == value
+
+
+def test_pytz_style_zone_attribute_used_as_tzid():
+    pytz = __import__("pytz")
+    zone = pytz.timezone("Europe/London")
+    value = zone.localize(dt.datetime(2026, 7, 22, 16, 0))
+    doc = vobject.parse(CAL)
+    event = doc.calendars[0].events[0]
+    event.start = value
+    assert "DTSTART;TZID=Europe/London:20260722T160000\r\n" in doc.serialize()
+    assert event.start == value
+
+
+def test_set_datetime_preserves_unrelated_params():
+    # Regression: setting .end used to replace the whole params list,
+    # discarding parameters the setter does not manage.
+    text = (
+        "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n"
+        "DTEND;X-FOO=bar;TZID=Europe/London:20260722T163000\r\n"
+        "END:VEVENT\r\nEND:VCALENDAR\r\n"
+    )
+    event = vobject.parse(text).calendars[0].events[0]
+    event.end = dt.datetime(2026, 7, 23, 10, 0, tzinfo=LONDON)
+    params = {p.name.upper(): p.values for p in event.component.prop("DTEND").params}
+    assert params.get("X-FOO") == ["bar"]
+    assert params.get("TZID") == ["Europe/London"]
+
+    # Switching to a date keeps X-FOO, drops TZID, and adds VALUE=DATE.
+    event.end = dt.date(2026, 7, 23)
+    params = {p.name.upper(): p.values for p in event.component.prop("DTEND").params}
+    assert params.get("X-FOO") == ["bar"]
+    assert "TZID" not in params
+    assert params.get("VALUE") == ["DATE"]
+
+    # And back to a UTC datetime: X-FOO survives, VALUE=DATE is removed.
+    event.end = dt.datetime(2026, 7, 24, 9, 0, tzinfo=dt.timezone.utc)
+    params = {p.name.upper(): p.values for p in event.component.prop("DTEND").params}
+    assert params.get("X-FOO") == ["bar"]
+    assert "TZID" not in params
+    assert "VALUE" not in params
+
+
 def test_card_accessors():
     (card,) = vobject.parse(CARD).cards
     assert card.fn == "Alice Example"
@@ -151,3 +234,119 @@ def test_wrong_component_type_rejected():
     (card,) = vobject.parse(CARD).components
     with pytest.raises(ValueError):
         vobject.Event(card)
+
+
+def _event_of(body: str) -> vobject.Event:
+    text = f"BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n{body}END:VEVENT\r\nEND:VCALENDAR\r\n"
+    return vobject.parse(text).calendars[0].events[0]
+
+
+def test_card_vcard3_dialect():
+    card3 = vobject.parse(
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Bob\r\nEND:VCARD\r\n"
+    ).cards[0]
+    assert card3.DIALECT == "vcard3"
+    card21 = vobject.parse(
+        "BEGIN:VCARD\r\nVERSION:2.1\r\nFN:Bob\r\nEND:VCARD\r\n"
+    ).cards[0]
+    assert card21.DIALECT == "vcard3"
+    card4 = vobject.parse(CARD).cards[0]
+    assert card4.DIALECT == "vcard4"
+
+
+def test_card_tels():
+    card = vobject.parse(
+        "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Bob\r\n"
+        "TEL:+441234\r\nTEL:+445678\r\nEND:VCARD\r\n"
+    ).cards[0]
+    assert card.tels == ["+441234", "+445678"]
+
+
+def test_explicit_duration_wins():
+    event = _event_of(
+        "DTSTART:20260722T160000Z\r\nDTEND:20260722T163000Z\r\nDURATION:PT2H\r\n"
+    )
+    assert event.duration == dt.timedelta(hours=2)
+
+
+def test_duration_none_when_start_or_end_missing():
+    assert _event_of("DTEND:20260722T163000Z\r\n").duration is None
+    assert _event_of("SUMMARY:x\r\n").duration is None
+
+
+def test_duration_none_for_mixed_date_and_datetime():
+    event = _event_of(
+        "DTSTART;VALUE=DATE:20260722\r\nDTEND:20260723T100000Z\r\n"
+    )
+    assert event.duration is None
+
+
+def test_end_none_without_start():
+    assert _event_of("SUMMARY:x\r\n").end is None
+
+
+def test_datetime_start_defaults_to_zero_duration_end():
+    event = _event_of("DTSTART:20260722T160000Z\r\n")
+    assert event.end == dt.datetime(2026, 7, 22, 16, 0, tzinfo=dt.timezone.utc)
+    assert event.duration == dt.timedelta(0)
+
+
+def test_uid_setter():
+    event = _event_of("SUMMARY:x\r\n")
+    event.uid = "new-uid-1"
+    assert event.uid == "new-uid-1"
+    assert event.component.prop("UID").value == "new-uid-1"
+
+
+def test_end_setter_creates_property():
+    event = _event_of("DTSTART:20260722T160000Z\r\n")
+    event.end = dt.datetime(2026, 7, 22, 17, 0, tzinfo=dt.timezone.utc)
+    assert event.component.prop("DTEND").value == "20260722T170000Z"
+    assert event.end == dt.datetime(2026, 7, 22, 17, 0, tzinfo=dt.timezone.utc)
+
+
+def test_repr_and_eq():
+    doc = vobject.parse(CAL)
+    event = doc.calendars[0].events[0]
+    assert repr(event).startswith("Event(")
+    assert event == doc.calendars[0].events[0]
+    assert event != doc.calendars[0]
+    assert not (event == "not a view")
+
+
+def test_text_default():
+    event = _event_of("SUMMARY:x\r\n")
+    assert event.text("LOCATION") is None
+    assert event.text("LOCATION", "nowhere") == "nowhere"
+
+
+def test_set_text_appends_when_missing():
+    event = _event_of("SUMMARY:x\r\n")
+    event.description = "line one\nline two, with comma"
+    assert event.component.prop("DESCRIPTION") is not None
+    assert event.description == "line one\nline two, with comma"
+
+
+def test_occurrences_without_dtstart():
+    assert _event_of("SUMMARY:x\r\n").occurrences() == []
+
+
+def test_timezone_tzid():
+    text = (
+        "BEGIN:VCALENDAR\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/London\r\n"
+        "END:VTIMEZONE\r\nEND:VCALENDAR\r\n"
+    )
+    cal = vobject.parse(text).calendars[0]
+    (tz,) = cal.timezones
+    assert tz.tzid == "Europe/London"
+
+
+def test_calendar_journals():
+    text = (
+        "BEGIN:VCALENDAR\r\nBEGIN:VJOURNAL\r\nSUMMARY:Dear diary\r\n"
+        "DTSTART;VALUE=DATE:20260722\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n"
+    )
+    cal = vobject.parse(text).calendars[0]
+    (journal,) = cal.journals
+    assert journal.summary == "Dear diary"
+    assert journal.start == dt.date(2026, 7, 22)

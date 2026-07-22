@@ -1,9 +1,13 @@
 """Conversion of typed property values to native Python objects.
 
 The Rust core parses raw values into typed representations; this module
-maps them onto datetime/date/time/timedelta/etc. Values of list-natured
-kinds are always lists (even with one element) so callers see stable
-types.
+maps them onto datetime/date/time/timedelta/etc. Date, datetime, time,
+duration, and period values are always lists (even with one element), as
+are text-lists (CATEGORIES) and structured values (N, REQUEST-STATUS).
+The ``text``, ``integer``, and ``float`` kinds deliberately unwrap a
+single value to a bare scalar — SUMMARY gives a string and PRIORITY an
+int, not one-element lists — and are lists only when the property
+genuinely carries several comma-separated values.
 """
 
 from __future__ import annotations
@@ -21,7 +25,12 @@ except ImportError:  # pragma: no cover - zoneinfo is stdlib on >=3.9
 
 
 def _tzinfo_for(prop: Property) -> _dt.tzinfo | None:
-    """Resolve a TZID parameter to a zoneinfo timezone if possible."""
+    """Resolve a TZID parameter to a zoneinfo timezone if possible.
+
+    Returns ``None`` when there is no TZID or when the TZID names no
+    known zone; datetimes built from an unresolvable TZID therefore come
+    back naive (local wall time, zone information dropped).
+    """
     for param in prop.params:
         if param.name.upper() == "TZID" and param.values:
             tzid = param.values[0].lstrip("/")
@@ -60,7 +69,9 @@ def native_value(prop: Property, dialect: str = "icalendar") -> Any:
     """The property's value as a native Python object.
 
     Raises ``ParseError`` (via the core) if the raw value does not parse as
-    the property's resolved type.
+    the property's resolved type. A TZID parameter naming a zone that
+    zoneinfo cannot resolve yields naive datetimes (the wall time is kept,
+    the unresolvable zone is dropped).
     """
     kind, payload = _typed_value(prop, dialect)
     tz = _tzinfo_for(prop)
