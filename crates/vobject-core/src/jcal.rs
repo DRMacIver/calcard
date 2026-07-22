@@ -16,8 +16,8 @@ use serde_json::{json, Map, Value as Json};
 use crate::escape::escape_text;
 use crate::model::{Component, Param, Property};
 use crate::value::{
-    self, default_type_info, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time,
-    TypeInfo, Until, Value, ValueType,
+    self, default_type_info, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time, TypeInfo,
+    Until, Value, ValueType,
 };
 
 fn json_date(d: &Date) -> String {
@@ -35,11 +35,7 @@ fn json_time(t: &Time) -> String {
 }
 
 fn json_datetime(dt: &DateTime) -> String {
-    format!(
-        "{}T{}",
-        json_date(&dt.date),
-        json_time(&dt.time)
-    )
+    format!("{}T{}", json_date(&dt.date), json_time(&dt.time))
 }
 
 fn json_date_or_datetime(d: &DateOrDateTime) -> String {
@@ -229,10 +225,7 @@ fn value_to_json_slots(prop: &Property, info: TypeInfo, dialect: Dialect) -> Vec
     // vCard 4 partial date/time forms are string transformations, not full
     // semantic parses. vCard 3 has no such types: values whose VALUE param
     // claims them pass through raw.
-    if matches!(
-        info.vtype,
-        ValueType::DateAndOrTime | ValueType::Timestamp
-    ) {
+    if matches!(info.vtype, ValueType::DateAndOrTime | ValueType::Timestamp) {
         return if dialect == Dialect::VCard4 {
             vec![json!(vcard_datetime_to_jcard(prop.value.trim()))]
         } else {
@@ -436,8 +429,8 @@ impl std::error::Error for JcalError {}
 /// degradations (unparseable values carried as raw strings) are read back
 /// verbatim.
 pub fn from_jcal(json: &str) -> Result<Vec<Component>, JcalError> {
-    let value: Json = serde_json::from_str(json)
-        .map_err(|e| JcalError::new(format!("invalid JSON: {e}")))?;
+    let value: Json =
+        serde_json::from_str(json).map_err(|e| JcalError::new(format!("invalid JSON: {e}")))?;
     from_jcal_value(&value)
 }
 
@@ -485,11 +478,7 @@ fn document_component(v: &Json) -> Result<Component, JcalError> {
     component_from_json(v, dialect, 0)
 }
 
-fn component_from_json(
-    v: &Json,
-    dialect: Dialect,
-    depth: usize,
-) -> Result<Component, JcalError> {
+fn component_from_json(v: &Json, dialect: Dialect, depth: usize) -> Result<Component, JcalError> {
     if depth > MAX_DEPTH {
         return Err(JcalError::new("jCal components nested too deeply"));
     }
@@ -653,9 +642,7 @@ fn raw_from_slots(
             other => json_scalar_to_string(other),
         }),
         UtcOffset => join_slots(slots, |s| match s {
-            Json::String(text) => {
-                verified_wire(text, text.replace(':', ""), effective, dialect)
-            }
+            Json::String(text) => verified_wire(text, text.replace(':', ""), effective, dialect),
             other => json_scalar_to_string(other),
         }),
         Boolean => match &slots[0] {
@@ -702,11 +689,7 @@ fn structured_text_raw(slot: &Json) -> String {
         }
     }
     match slot {
-        Json::Array(entries) => entries
-            .iter()
-            .map(component)
-            .collect::<Vec<_>>()
-            .join(";"),
+        Json::Array(entries) => entries.iter().map(component).collect::<Vec<_>>().join(";"),
         other => component(other),
     }
 }
@@ -796,9 +779,9 @@ fn date_slot_to_wire(text: &str, vtype: ValueType, dialect: Dialect) -> String {
         return text.to_string();
     }
     let looks_like_datetime = !text.is_empty()
-        && text.chars().all(|c| {
-            c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-')
-        });
+        && text
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-'));
     if !looks_like_datetime {
         return text.to_string();
     }
@@ -861,7 +844,11 @@ mod tests {
             serde_json::json!([
                 "vcalendar",
                 [["version", {}, "text", "2.0"]],
-                [["vevent", [["dtstart", {}, "date-time", "2026-07-22T16:00:00Z"]], []]]
+                [[
+                    "vevent",
+                    [["dtstart", {}, "date-time", "2026-07-22T16:00:00Z"]],
+                    []
+                ]]
             ])
         );
     }
@@ -870,7 +857,10 @@ mod tests {
     fn value_param_consumed_into_type() {
         let comp = first("BEGIN:VCALENDAR\r\nDTSTART;VALUE=DATE:20260722\r\nEND:VCALENDAR\r\n");
         let j = to_jcal(&comp);
-        assert_eq!(j[1][0], serde_json::json!(["dtstart", {}, "date", "2026-07-22"]));
+        assert_eq!(
+            j[1][0],
+            serde_json::json!(["dtstart", {}, "date", "2026-07-22"])
+        );
     }
 
     #[test]

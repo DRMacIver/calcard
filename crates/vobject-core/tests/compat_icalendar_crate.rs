@@ -210,7 +210,9 @@ fn draw_event_spec(tc: &hegel::TestCase) -> EventSpec {
             .draw(generators::booleans())
             .then(|| tc.draw(generators::integers::<u32>().max_value(9))),
         x_value: tc.draw(generators::booleans()).then(|| draw_raw_value(tc)),
-        x_param: tc.draw(generators::booleans()).then(|| draw_param_value(tc)),
+        x_param: tc
+            .draw(generators::booleans())
+            .then(|| draw_param_value(tc)),
     }
 }
 
@@ -401,7 +403,10 @@ fn our_parser_reads_icalendar_crate_output(tc: hegel::TestCase) {
                     None => assert!(prop.param("X-PARAM").is_none()),
                 }
             }
-            None => assert!(event.prop("X-COMPAT").is_none(), "{ctx}: unexpected X-COMPAT"),
+            None => assert!(
+                event.prop("X-COMPAT").is_none(),
+                "{ctx}: unexpected X-COMPAT"
+            ),
         }
     }
 

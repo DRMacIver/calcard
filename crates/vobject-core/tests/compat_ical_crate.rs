@@ -213,8 +213,12 @@ fn write_for_ical_crate(tc: &hegel::TestCase, components: &[Component]) -> Strin
 // ---------------------------------------------------------------------------
 // Comparison helpers
 
+/// The ical crate's view of a property: (name, params, value), with
+/// params as (name, values) pairs.
+type IcalProperty = (String, Option<Vec<(String, Vec<String>)>>, Option<String>);
+
 /// What the ical crate should report for one of our properties.
-fn expected_property(prop: &Property) -> (String, Option<Vec<(String, Vec<String>)>>, Option<String>) {
+fn expected_property(prop: &Property) -> IcalProperty {
     let name = match &prop.group {
         Some(g) => format!("{g}.{}", prop.name),
         None => prop.name.clone(),
@@ -346,7 +350,11 @@ fn ical_crate_parses_our_vcard_output(tc: hegel::TestCase) {
     let wire = write_for_ical_crate(&tc, &cards);
 
     let parsed: Vec<_> = ical::VcardParser::new(wire.as_bytes()).collect();
-    assert_eq!(parsed.len(), cards.len(), "card count diverged\nwire:\n{wire}");
+    assert_eq!(
+        parsed.len(),
+        cards.len(),
+        "card count diverged\nwire:\n{wire}"
+    );
 
     for (ours, theirs) in cards.iter().zip(parsed) {
         let theirs = theirs.unwrap_or_else(|e| panic!("ical crate failed: {e}\nwire:\n{wire}"));

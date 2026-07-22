@@ -83,11 +83,7 @@ fn expand_ours(rule: &str, dtstart: &str, limit: usize) -> Vec<String> {
 
 /// Expand with the rrule crate. `Err` means their validator rejected a rule
 /// our parser accepts; `Ok((instances, limited))` mirrors `RRuleSet::all`.
-fn expand_theirs(
-    rule: &str,
-    dtstart: &str,
-    limit: u16,
-) -> Result<(Vec<String>, bool), String> {
+fn expand_theirs(rule: &str, dtstart: &str, limit: u16) -> Result<(Vec<String>, bool), String> {
     let input = format!("DTSTART:{dtstart}\nRRULE:{rule}");
     let set = rrule::RRuleSet::from_str(&input).map_err(|e| e.to_string())?;
     let result = set.all(limit);
@@ -141,7 +137,9 @@ fn draw_rule(tc: &hegel::TestCase, dtstart: &str) -> GeneratedRule {
         }
         // `use_ordinals` can still leave a plain entry behind when the drawn
         // ordinal is 0; keep the list homogeneous (deviation 9).
-        let any_ordinal = days.iter().any(|d| !d.chars().next().unwrap().is_ascii_alphabetic());
+        let any_ordinal = days
+            .iter()
+            .any(|d| !d.chars().next().unwrap().is_ascii_alphabetic());
         if any_ordinal {
             days.retain(|d| !d.chars().next().unwrap().is_ascii_alphabetic());
         }
@@ -221,7 +219,11 @@ fn draw_rule(tc: &hegel::TestCase, dtstart: &str) -> GeneratedRule {
 }
 
 fn draw_dtstart(tc: &hegel::TestCase) -> String {
-    let year = tc.draw(generators::integers::<i32>().min_value(1970).max_value(2060));
+    let year = tc.draw(
+        generators::integers::<i32>()
+            .min_value(1970)
+            .max_value(2060),
+    );
     let month = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
     let day = tc.draw(
         generators::integers::<u8>()
@@ -262,7 +264,7 @@ fn expansion_matches_rrule_crate(tc: hegel::TestCase) {
 
     let accepted = ACCEPTED.load(Ordering::Relaxed);
     let rejected = REJECTED.load(Ordering::Relaxed);
-    if (accepted + rejected) % 100 == 0 {
+    if (accepted + rejected).is_multiple_of(100) {
         // Silent under normal `cargo test`; visible with `-- --nocapture`.
         eprintln!("rrule-crate comparison: {accepted} accepted, {rejected} rejected");
     }

@@ -361,9 +361,7 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
                 };
                 // Within selected weeks, BYDAY limits by weekday; other
                 // BY-day rules and BYMONTH also limit.
-                if !cfg.by_day.is_empty()
-                    && !cfg.by_day.iter().any(|&(_, wd)| wd == d.weekday())
-                {
+                if !cfg.by_day.is_empty() && !cfg.by_day.iter().any(|&(_, wd)| wd == d.weekday()) {
                     continue;
                 }
                 if cfg.by_day.is_empty() && d.weekday() != cfg.dtstart.date.weekday() {
@@ -392,9 +390,8 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
     if has_ordinal_byday {
         if cfg.by_month.is_empty() {
             for &(ord, wd) in &cfg.by_day {
-                match ord {
-                    Some(n) => ordinal_days.extend(nth_weekday_of_year(year, wd, n)),
-                    None => {}
+                if let Some(n) = ord {
+                    ordinal_days.extend(nth_weekday_of_year(year, wd, n))
                 }
             }
         } else {
@@ -445,10 +442,7 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
         }
         if !cfg.by_day.is_empty() {
             let wd = d.weekday();
-            let plain_match = cfg
-                .by_day
-                .iter()
-                .any(|&(ord, w)| ord.is_none() && w == wd);
+            let plain_match = cfg.by_day.iter().any(|&(ord, w)| ord.is_none() && w == wd);
             let ordinal_match = has_ordinal_byday && ordinal_days.contains(&d);
             if !plain_match && !ordinal_match {
                 continue;
@@ -481,7 +475,13 @@ fn nth_weekday_of_year(year: i32, wd: Weekday, n: i8) -> Option<Date> {
         let last = dec31.add_days(-(back as i64)).unwrap();
         let d = last.add_days((n as i64 + 1) * 7);
         match d {
-            Ok(d) if d.year == year && (jan1.to_ordinal()..jan1.to_ordinal() + n_days).contains(&d.to_ordinal()) => Some(d),
+            Ok(d)
+                if d.year == year
+                    && (jan1.to_ordinal()..jan1.to_ordinal() + n_days)
+                        .contains(&d.to_ordinal()) =>
+            {
+                Some(d)
+            }
             _ => None,
         }
     }
@@ -497,7 +497,7 @@ fn nth_weekday_of_month(year: i32, month: u8, wd: Weekday, n: i8) -> Option<Date
             day: 1,
         };
         let day = 1 + first.weekday().days_until(wd) as i64 + (n as i64 - 1) * 7;
-        (day <= dim as i64).then(|| Date {
+        (day <= dim as i64).then_some(Date {
             year,
             month,
             day: day as u8,
@@ -510,7 +510,7 @@ fn nth_weekday_of_month(year: i32, month: u8, wd: Weekday, n: i8) -> Option<Date
         };
         let back = (last.weekday().number0() + 7 - wd.number0()) % 7;
         let day = dim as i64 - back as i64 + (n as i64 + 1) * 7;
-        (day >= 1).then(|| Date {
+        (day >= 1).then_some(Date {
             year,
             month,
             day: day as u8,
@@ -623,9 +623,7 @@ impl RRuleIter {
                 .collect();
             idx.sort_unstable();
             idx.dedup();
-            idx.into_iter()
-                .map(|i| candidates[i as usize])
-                .collect()
+            idx.into_iter().map(|i| candidates[i as usize]).collect()
         };
         self.buffer = selected;
         self.buffer.reverse();
@@ -743,8 +741,7 @@ impl RRuleIter {
                             }
                         }
                         Frequency::Minutely => {
-                            let minute_ok =
-                                cfg.by_minute.is_empty() || cfg.by_minute.contains(&m);
+                            let minute_ok = cfg.by_minute.is_empty() || cfg.by_minute.contains(&m);
                             if hour_ok && minute_ok {
                                 let mut seconds = cfg.by_second.clone();
                                 seconds.sort_unstable();
@@ -759,18 +756,16 @@ impl RRuleIter {
                             }
                         }
                         _ => {
-                            let minute_ok =
-                                cfg.by_minute.is_empty() || cfg.by_minute.contains(&m);
-                            let second_ok =
-                                cfg.by_second.is_empty() || cfg.by_second.contains(&s);
+                            let minute_ok = cfg.by_minute.is_empty() || cfg.by_minute.contains(&m);
+                            let second_ok = cfg.by_second.is_empty() || cfg.by_second.contains(&s);
                             if hour_ok && minute_ok && second_ok {
                                 out.push(cur);
                             }
                         }
                     }
                     if out.is_empty() {
-                        let day_start = cur.to_epoch_like()
-                            - (h as i64 * 3600 + m as i64 * 60 + s as i64);
+                        let day_start =
+                            cur.to_epoch_like() - (h as i64 * 3600 + m as i64 * 60 + s as i64);
                         if !hour_ok {
                             // Jump to the next allowed hour today, or the
                             // start of the next day.
@@ -1002,10 +997,8 @@ fn expand_gregorian(
                 cfg.dtstart.date.year
             } else {
                 let wy = week_year(cfg.dtstart.date, cfg.wkst);
-                let week = (cfg.dtstart.date.to_ordinal()
-                    - week1_start_ordinal(wy, cfg.wkst))
-                    / 7
-                    + 1;
+                let week =
+                    (cfg.dtstart.date.to_ordinal() - week1_start_ordinal(wy, cfg.wkst)) / 7 + 1;
                 let nweeks = weeks_in_year(wy, cfg.wkst);
                 let week_match = cfg.by_week_no.iter().any(|&wn| {
                     let resolved = if wn > 0 {
@@ -1032,8 +1025,7 @@ fn expand_gregorian(
             month0: cfg.dtstart.date.month as i64 - 1,
         },
         Frequency::Weekly => {
-            let since_wkst =
-                (cfg.dtstart.date.weekday().number0() + 7 - cfg.wkst.number0()) % 7;
+            let since_wkst = (cfg.dtstart.date.weekday().number0() + 7 - cfg.wkst.number0()) % 7;
             PeriodCursor::Weekly {
                 // A DTSTART in the first days of year 0 can have its week
                 // start before the representable range; starting the cursor
@@ -1049,11 +1041,9 @@ fn expand_gregorian(
         Frequency::Daily => PeriodCursor::Daily {
             day: cfg.dtstart.date,
         },
-        Frequency::Hourly | Frequency::Minutely | Frequency::Secondly => {
-            PeriodCursor::SubDaily {
-                current: cfg.dtstart,
-            }
-        }
+        Frequency::Hourly | Frequency::Minutely | Frequency::Secondly => PeriodCursor::SubDaily {
+            current: cfg.dtstart,
+        },
     };
     Ok(RRuleIter {
         cfg,
@@ -1092,7 +1082,11 @@ mod tests {
     #[test]
     fn weekly_interval_byday() {
         assert_eq!(
-            run("FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;COUNT=4", "19970902T090000", 10),
+            run(
+                "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;COUNT=4",
+                "19970902T090000",
+                10
+            ),
             vec![
                 "19970902T090000",
                 "19970904T090000",
@@ -1143,11 +1137,7 @@ mod tests {
     #[test]
     fn until_is_inclusive() {
         assert_eq!(
-            run(
-                "FREQ=DAILY;UNTIL=19970904T090000Z",
-                "19970902T090000",
-                10
-            ),
+            run("FREQ=DAILY;UNTIL=19970904T090000Z", "19970902T090000", 10),
             vec!["19970902T090000", "19970903T090000", "19970904T090000"]
         );
     }

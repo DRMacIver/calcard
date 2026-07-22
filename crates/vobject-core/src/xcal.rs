@@ -240,7 +240,12 @@ fn write_property(w: &mut W, prop_json: &Json, dialect: Dialect) -> Result<(), X
     Ok(())
 }
 
-fn write_component(w: &mut W, comp_json: &Json, dialect: Dialect, vcard: bool) -> Result<(), XmlError> {
+fn write_component(
+    w: &mut W,
+    comp_json: &Json,
+    dialect: Dialect,
+    vcard: bool,
+) -> Result<(), XmlError> {
     let entry = comp_json
         .as_array()
         .ok_or_else(|| XmlError::new("malformed jCal component"))?;
@@ -357,15 +362,11 @@ fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
             }
             Ok(Event::Empty(e)) => {
                 let name = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
-                stack
-                    .last_mut()
-                    .unwrap()
-                    .children
-                    .push(XNode {
-                        name,
-                        text: String::new(),
-                        children: Vec::new(),
-                    });
+                stack.last_mut().unwrap().children.push(XNode {
+                    name,
+                    text: String::new(),
+                    children: Vec::new(),
+                });
             }
             Ok(Event::End(_)) => {
                 let done = stack.pop().unwrap();
@@ -376,9 +377,7 @@ fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
                     .push(done);
             }
             Ok(Event::Text(t)) => {
-                let text = t
-                    .decode()
-                    .map_err(|e| XmlError::new(e.to_string()))?;
+                let text = t.decode().map_err(|e| XmlError::new(e.to_string()))?;
                 stack.last_mut().unwrap().text.push_str(&text);
             }
             Ok(Event::GeneralRef(e)) => {
@@ -396,9 +395,7 @@ fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
                 match resolved {
                     Some(c) => stack.last_mut().unwrap().text.push(c),
                     None => {
-                        return Err(XmlError::new(format!(
-                            "unknown entity reference &{name};"
-                        )))
+                        return Err(XmlError::new(format!("unknown entity reference &{name};")))
                     }
                 }
             }
@@ -453,9 +450,9 @@ fn value_text_to_wire(type_name: &str, text: &str, dialect: Dialect) -> String {
             // strings; only transform text that is shaped like a jCal
             // date/time (digits and date-time punctuation alone).
             let looks_like_datetime = !text.is_empty()
-                && text
-                    .chars()
-                    .all(|c| c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-'));
+                && text.chars().all(|c| {
+                    c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-')
+                });
             if !looks_like_datetime {
                 return text.to_string();
             }
@@ -750,7 +747,10 @@ mod tests {
         let xml = to_xml(&comps).unwrap();
         assert!(xml.contains("<date>2026-07-22</date>"));
         let back = from_xml(&xml).unwrap();
-        assert_eq!(back[0].prop("DTSTART").unwrap().param_value("VALUE"), Some("DATE"));
+        assert_eq!(
+            back[0].prop("DTSTART").unwrap().param_value("VALUE"),
+            Some("DATE")
+        );
         assert_eq!(back[0].prop("DTSTART").unwrap().value, "20260722");
     }
 
@@ -763,7 +763,9 @@ mod tests {
         assert!(xml.contains("<code>2.0</code><description>Success</description>"));
         assert!(xml.contains("<text>one</text><text>two,half</text>"));
         assert!(xml.contains("<latitude>37.386013</latitude><longitude>-122.082932</longitude>"));
-        assert!(xml.contains("<period><start>1997-01-01T18:00:00Z</start><duration>PT1H</duration></period>"));
+        assert!(xml.contains(
+            "<period><start>1997-01-01T18:00:00Z</start><duration>PT1H</duration></period>"
+        ));
 
         let back = from_xml(&xml).unwrap();
         assert_eq!(back, comps);

@@ -130,23 +130,23 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
         }
 
         if prop.name.eq_ignore_ascii_case("END") {
-            let name = match delimiter_name(&prop, loc, if lenient { Some(&mut repairs) } else { None })
-            {
-                Some(n) => n,
-                None => {
-                    if lenient {
-                        repairs.push(Repair {
+            let name =
+                match delimiter_name(&prop, loc, if lenient { Some(&mut repairs) } else { None }) {
+                    Some(n) => n,
+                    None => {
+                        if lenient {
+                            repairs.push(Repair {
+                                location: loc,
+                                kind: RepairKind::DroppedLine(ErrorKind::MalformedDelimiter),
+                            });
+                            continue;
+                        }
+                        return Err(ParseError {
                             location: loc,
-                            kind: RepairKind::DroppedLine(ErrorKind::MalformedDelimiter),
+                            kind: ErrorKind::MalformedDelimiter,
                         });
-                        continue;
                     }
-                    return Err(ParseError {
-                        location: loc,
-                        kind: ErrorKind::MalformedDelimiter,
-                    });
-                }
-            };
+                };
             close_component(&mut stack, &mut roots, &name, loc, lenient, &mut repairs)?;
             continue;
         }
@@ -359,7 +359,10 @@ mod tests {
         let cal = &parsed.components[0];
         assert_eq!(cal.name, "VCALENDAR");
         assert_eq!(cal.prop("VERSION").unwrap().value, "2.0");
-        assert_eq!(cal.comp("VEVENT").unwrap().prop("SUMMARY").unwrap().value, "Hi");
+        assert_eq!(
+            cal.comp("VEVENT").unwrap().prop("SUMMARY").unwrap().value,
+            "Hi"
+        );
     }
 
     #[test]
@@ -392,7 +395,9 @@ mod tests {
     #[test]
     fn strict_rejects_unterminated() {
         assert!(matches!(
-            strict("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n").unwrap_err().kind,
+            strict("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n")
+                .unwrap_err()
+                .kind,
             ErrorKind::UnterminatedComponent(_)
         ));
     }
@@ -402,7 +407,10 @@ mod tests {
         let parsed = lenient("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:x\r\n");
         assert_eq!(parsed.components.len(), 1);
         let cal = &parsed.components[0];
-        assert_eq!(cal.comp("VEVENT").unwrap().prop("SUMMARY").unwrap().value, "x");
+        assert_eq!(
+            cal.comp("VEVENT").unwrap().prop("SUMMARY").unwrap().value,
+            "x"
+        );
         assert_eq!(
             parsed
                 .repairs
@@ -459,7 +467,8 @@ mod tests {
 
     #[test]
     fn lenient_drops_content_outside_component() {
-        let parsed = lenient("junk before\r\nBEGIN:VCARD\r\nFN:x\r\nEND:VCARD\r\ntrailing junk\r\n");
+        let parsed =
+            lenient("junk before\r\nBEGIN:VCARD\r\nFN:x\r\nEND:VCARD\r\ntrailing junk\r\n");
         assert_eq!(parsed.components.len(), 1);
         assert!(!parsed.repairs.is_empty());
     }
@@ -476,7 +485,8 @@ mod tests {
 
     #[test]
     fn interleaving_preserved() {
-        let input = "BEGIN:VCALENDAR\r\nA:1\r\nBEGIN:VEVENT\r\nEND:VEVENT\r\nB:2\r\nEND:VCALENDAR\r\n";
+        let input =
+            "BEGIN:VCALENDAR\r\nA:1\r\nBEGIN:VEVENT\r\nEND:VEVENT\r\nB:2\r\nEND:VCALENDAR\r\n";
         let parsed = strict(input).unwrap();
         let cal = &parsed.components[0];
         assert!(matches!(cal.children[0], Child::Property(_)));
@@ -561,7 +571,10 @@ mod tests {
     fn folded_property_line() {
         let input = "BEGIN:VCARD\r\nNOTE:hello\r\n  world\r\nEND:VCARD\r\n";
         let parsed = strict(input).unwrap();
-        assert_eq!(parsed.components[0].prop("NOTE").unwrap().value, "hello world");
+        assert_eq!(
+            parsed.components[0].prop("NOTE").unwrap().value,
+            "hello world"
+        );
     }
 
     #[test]

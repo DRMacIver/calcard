@@ -192,7 +192,7 @@ impl Weekday {
 
     /// Days from `self` to `other` going forward (0-6).
     pub fn days_until(&self, other: Weekday) -> u8 {
-        ((other.number0() + 7 - self.number0()) % 7) as u8
+        (other.number0() + 7 - self.number0()) % 7
     }
 
     /// Monday = 0 ... Sunday = 6.
@@ -411,10 +411,22 @@ mod tests {
 
     #[test]
     fn weekday_computation() {
-        assert_eq!(Date::parse("20260722").unwrap().weekday(), Weekday::Wednesday);
-        assert_eq!(Date::parse("20000101").unwrap().weekday(), Weekday::Saturday);
-        assert_eq!(Date::parse("19700101").unwrap().weekday(), Weekday::Thursday);
-        assert_eq!(Date::parse("20240229").unwrap().weekday(), Weekday::Thursday);
+        assert_eq!(
+            Date::parse("20260722").unwrap().weekday(),
+            Weekday::Wednesday
+        );
+        assert_eq!(
+            Date::parse("20000101").unwrap().weekday(),
+            Weekday::Saturday
+        );
+        assert_eq!(
+            Date::parse("19700101").unwrap().weekday(),
+            Weekday::Thursday
+        );
+        assert_eq!(
+            Date::parse("20240229").unwrap().weekday(),
+            Weekday::Thursday
+        );
     }
 
     #[test]

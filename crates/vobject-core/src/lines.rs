@@ -120,7 +120,9 @@ pub fn unfold(
         }
 
         if qp_continuation {
-            let current = out.last_mut().expect("qp_continuation implies a previous line");
+            let current = out
+                .last_mut()
+                .expect("qp_continuation implies a previous line");
             // The previous line's trailing '=' was a soft break: drop it and
             // append this physical line verbatim.
             current.text.pop();
@@ -183,16 +185,17 @@ pub fn unfold(
         // lenient mode: this is outside the RFC 5545 / 6350 grammar.
         if repairs.is_some() {
             let current = out.last().unwrap();
-            if current.text.ends_with('=') && looks_quoted_printable(&current.text) {
-                if idx < physical.len() {
-                    if let Some(r) = repairs.as_deref_mut() {
-                        r.push(Repair {
-                            location: loc,
-                            kind: RepairKind::JoinedQuotedPrintable,
-                        });
-                    }
-                    qp_continuation = true;
+            if current.text.ends_with('=')
+                && looks_quoted_printable(&current.text)
+                && idx < physical.len()
+            {
+                if let Some(r) = repairs.as_deref_mut() {
+                    r.push(Repair {
+                        location: loc,
+                        kind: RepairKind::JoinedQuotedPrintable,
+                    });
                 }
+                qp_continuation = true;
             }
         }
     }
@@ -235,7 +238,10 @@ mod tests {
 
     #[test]
     fn folding_with_space_and_tab() {
-        assert_eq!(strict("A:one\r\n two\r\n\tthree\r\n").unwrap(), vec!["A:onetwothree"]);
+        assert_eq!(
+            strict("A:one\r\n two\r\n\tthree\r\n").unwrap(),
+            vec!["A:onetwothree"]
+        );
     }
 
     #[test]
@@ -303,7 +309,10 @@ mod tests {
         // line holds clean quoted-printable content.
         let input = "NOTE;ENCODING=QUOTED-PRINTABLE:line one=\r\nline two\r\nFN:Bob\r\n";
         let (lines, repairs) = lenient(input);
-        assert_eq!(lines, vec!["NOTE;ENCODING=QUOTED-PRINTABLE:line oneline two", "FN:Bob"]);
+        assert_eq!(
+            lines,
+            vec!["NOTE;ENCODING=QUOTED-PRINTABLE:line oneline two", "FN:Bob"]
+        );
         assert!(repairs
             .iter()
             .any(|r| r.kind == RepairKind::JoinedQuotedPrintable));

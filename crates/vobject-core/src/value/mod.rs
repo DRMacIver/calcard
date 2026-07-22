@@ -197,8 +197,8 @@ fn icalendar_type_info(name: &str) -> TypeInfo {
         // Calendar / descriptive text
         "CALSCALE" | "METHOD" | "PRODID" | "VERSION" | "CLASS" | "COMMENT" | "DESCRIPTION"
         | "LOCATION" | "STATUS" | "SUMMARY" | "TRANSP" | "TZID" | "TZNAME" | "CONTACT"
-        | "RELATED-TO" | "UID" | "ACTION" | "BUSYTYPE" | "NAME" | "COLOR"
-        | "LOCATION-TYPE" | "PARTICIPANT-TYPE" | "RESOURCE-TYPE" | "PROXIMITY" => single(Text),
+        | "RELATED-TO" | "UID" | "ACTION" | "BUSYTYPE" | "NAME" | "COLOR" | "LOCATION-TYPE"
+        | "PARTICIPANT-TYPE" | "RESOURCE-TYPE" | "PROXIMITY" => single(Text),
         "CATEGORIES" | "RESOURCES" => list(Text),
         "REQUEST-STATUS" => structured(Text),
         // Dates and times
@@ -272,7 +272,9 @@ pub enum Value {
     Float(Vec<f64>),
     Integer(Vec<i64>),
     Period(Vec<Period>),
-    Recur(Recur),
+    /// Boxed because `Recur` is by far the largest payload and would
+    /// otherwise dominate the size of every `Value`.
+    Recur(Box<Recur>),
     /// Unescaped text values; single-valued TEXT properties have exactly
     /// one element.
     Text(Vec<String>),
@@ -345,7 +347,7 @@ pub fn parse_value(raw: &str, info: TypeInfo) -> Result<Value, ValueError> {
         Period => Value::Period(parse_list(raw, info.multiplicity, |s| {
             duration::Period::parse(s.trim())
         })?),
-        Recur => Value::Recur(recur::Recur::parse(raw)?),
+        Recur => Value::Recur(Box::new(recur::Recur::parse(raw)?)),
         Integer => Value::Integer(parse_list(raw, info.multiplicity, |s| {
             s.trim()
                 .parse::<i64>()
@@ -459,10 +461,7 @@ impl Property {
     /// list nature).
     pub fn type_info(&self, dialect: Dialect) -> TypeInfo {
         let default = default_type_info(&self.name, dialect);
-        match self
-            .param_value("VALUE")
-            .and_then(ValueType::from_name)
-        {
+        match self.param_value("VALUE").and_then(ValueType::from_name) {
             Some(vtype) => TypeInfo {
                 vtype,
                 multiplicity: if matches!(vtype, ValueType::Text) {
@@ -548,7 +547,9 @@ mod tests {
 
     #[test]
     fn text_unescaping_and_lists() {
-        let v = prop("SUMMARY", "a\\,b\\nc").typed_value(Dialect::ICalendar).unwrap();
+        let v = prop("SUMMARY", "a\\,b\\nc")
+            .typed_value(Dialect::ICalendar)
+            .unwrap();
         assert_eq!(v, Value::Text(vec!["a,b\nc".to_string()]));
 
         let v = prop("CATEGORIES", "one,two\\,half,three")
@@ -601,19 +602,28 @@ mod tests {
     #[test]
     fn numbers_and_booleans() {
         assert_eq!(
-            prop("PRIORITY", "5").typed_value(Dialect::ICalendar).unwrap(),
+            prop("PRIORITY", "5")
+                .typed_value(Dialect::ICalendar)
+                .unwrap(),
             Value::Integer(vec![5])
         );
-        assert!(prop("PRIORITY", "five").typed_value(Dialect::ICalendar).is_err());
+        assert!(prop("PRIORITY", "five")
+            .typed_value(Dialect::ICalendar)
+            .is_err());
         let mut p = prop("X-B", "TRUE");
         p.params.push(Param::new("VALUE", "BOOLEAN"));
-        assert_eq!(p.typed_value(Dialect::ICalendar).unwrap(), Value::Boolean(true));
+        assert_eq!(
+            p.typed_value(Dialect::ICalendar).unwrap(),
+            Value::Boolean(true)
+        );
     }
 
     #[test]
     fn duration_and_trigger() {
         assert_eq!(
-            prop("DURATION", "PT1H").typed_value(Dialect::ICalendar).unwrap(),
+            prop("DURATION", "PT1H")
+                .typed_value(Dialect::ICalendar)
+                .unwrap(),
             Value::Duration(vec![Duration::parse("PT1H").unwrap()])
         );
         // TRIGGER;VALUE=DATE-TIME overrides duration default.
@@ -647,13 +657,21 @@ mod tests {
         let cases: Vec<(&str, &str, Dialect)> = vec![
             ("SUMMARY", "a\\,b\\nc", Dialect::ICalendar),
             ("CATEGORIES", "one,two\\,half", Dialect::ICalendar),
-            ("EXDATE", "20260101T000000Z,20260102T000000Z", Dialect::ICalendar),
+            (
+                "EXDATE",
+                "20260101T000000Z,20260102T000000Z",
+                Dialect::ICalendar,
+            ),
             ("DURATION", "PT1H30M", Dialect::ICalendar),
             ("GEO", "37.386013;-122.082932", Dialect::ICalendar),
             ("RRULE", "FREQ=WEEKLY;BYDAY=MO,WE", Dialect::ICalendar),
             ("TZOFFSETFROM", "-0500", Dialect::ICalendar),
             ("N", "Public;John;Quinlan;Mr.;Esq.", Dialect::VCard4),
-            ("FREEBUSY", "19970101T180000Z/PT1H,19970102T180000Z/PT1H", Dialect::ICalendar),
+            (
+                "FREEBUSY",
+                "19970101T180000Z/PT1H,19970102T180000Z/PT1H",
+                Dialect::ICalendar,
+            ),
         ];
         for (name, raw, dialect) in cases {
             let p = prop(name, raw);

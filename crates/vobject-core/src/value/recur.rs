@@ -64,7 +64,9 @@ impl WeekdayNum {
                 .parse()
                 .map_err(|_| ValueError::new(format!("invalid BYDAY {s:?}")))?;
             if n == 0 || !(-53..=53).contains(&n) {
-                return Err(ValueError::new(format!("BYDAY ordinal out of range in {s:?}")));
+                return Err(ValueError::new(format!(
+                    "BYDAY ordinal out of range in {s:?}"
+                )));
             }
             Some(n)
         };
@@ -199,7 +201,9 @@ fn parse_int_list<T: std::str::FromStr + Copy + PartialOrd>(
             .parse()
             .map_err(|_| ValueError::new(format!("invalid {part} value {piece:?}")))?;
         if n < min || n > max || (!allow_zero && n == zero) {
-            return Err(ValueError::new(format!("{part} value {piece:?} out of range")));
+            return Err(ValueError::new(format!(
+                "{part} value {piece:?} out of range"
+            )));
         }
         out.push(n);
     }
@@ -304,7 +308,9 @@ impl Recur {
                 "BYYEARDAY" => {
                     recur.by_year_day = parse_int_list(value, -366, 366, false, 0, "BYYEARDAY")?
                 }
-                "BYWEEKNO" => recur.by_week_no = parse_int_list(value, -53, 53, false, 0, "BYWEEKNO")?,
+                "BYWEEKNO" => {
+                    recur.by_week_no = parse_int_list(value, -53, 53, false, 0, "BYWEEKNO")?
+                }
                 "BYMONTH" => {
                     recur.by_month = value
                         .split(',')
@@ -317,7 +323,9 @@ impl Recur {
                 "WKST" => recur.wkst = Some(Weekday::parse(value)?),
                 "RSCALE" => recur.rscale = Some(value.to_ascii_uppercase()),
                 "SKIP" => recur.skip = Some(Skip::parse(value)?),
-                _ => recur.extra.push((name.trim().to_string(), value.to_string())),
+                _ => recur
+                    .extra
+                    .push((name.trim().to_string(), value.to_string())),
             }
         }
         if !seen_freq {
@@ -406,7 +414,8 @@ mod tests {
 
     #[test]
     fn parse_basic() {
-        let r = Recur::parse("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR;UNTIL=19971224T000000Z").unwrap();
+        let r =
+            Recur::parse("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR;UNTIL=19971224T000000Z").unwrap();
         assert_eq!(r.freq, Some(Frequency::Weekly));
         assert_eq!(r.interval(), 2);
         assert_eq!(r.by_day.len(), 3);
@@ -436,16 +445,16 @@ mod tests {
     fn parse_rejects_invalid() {
         for bad in [
             "",
-            "COUNT=3",                       // no FREQ
+            "COUNT=3", // no FREQ
             "FREQ=NEVER",
             "FREQ=DAILY;COUNT=x",
-            "FREQ=DAILY;BYDAY=0MO",          // zero ordinal
+            "FREQ=DAILY;BYDAY=0MO", // zero ordinal
             "FREQ=DAILY;BYMONTHDAY=0",
             "FREQ=DAILY;BYMONTH=13",
             "FREQ=DAILY;BYHOUR=24",
-            "FREQ=DAILY;UNTIL=2020",         // bad date
+            "FREQ=DAILY;UNTIL=2020",             // bad date
             "FREQ=DAILY;COUNT=1;UNTIL=20200101", // both terminators
-            "FREQ=DAILY;FREQ=WEEKLY",        // duplicate FREQ
+            "FREQ=DAILY;FREQ=WEEKLY",            // duplicate FREQ
             "FREQ=DAILY;NOEQUALS",
         ] {
             assert!(Recur::parse(bad).is_err(), "{bad:?} should fail");

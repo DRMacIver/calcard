@@ -12,6 +12,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use vobject_core as core;
 
+/// What `parse`/`parse_bytes` hand back to Python: (components, repairs).
+type ParsedDocument = (Vec<Py<Component>>, Vec<Py<Repair>>);
+
 create_exception!(
     calcard._core,
     ParseError,
@@ -207,17 +210,13 @@ impl Component {
             return Ok(false);
         }
         for (a, b) in self.children.iter().zip(&other.children) {
-            if let (Ok(pa), Ok(pb)) = (
-                a.cast_bound::<Property>(py),
-                b.cast_bound::<Property>(py),
-            ) {
+            if let (Ok(pa), Ok(pb)) = (a.cast_bound::<Property>(py), b.cast_bound::<Property>(py)) {
                 if !pa.borrow().__eq__(&pb.borrow(), py) {
                     return Ok(false);
                 }
-            } else if let (Ok(ca), Ok(cb)) = (
-                a.cast_bound::<Component>(py),
-                b.cast_bound::<Component>(py),
-            ) {
+            } else if let (Ok(ca), Ok(cb)) =
+                (a.cast_bound::<Component>(py), b.cast_bound::<Component>(py))
+            {
                 if !ca.borrow().__eq__(&cb.borrow(), py)? {
                     return Ok(false);
                 }
@@ -259,7 +258,7 @@ fn param_to_py(py: Python<'_>, p: &core::Param) -> PyResult<Py<Param>> {
 }
 
 fn property_to_py(py: Python<'_>, p: &core::Property) -> PyResult<Py<Property>> {
-    Ok(Py::new(
+    Py::new(
         py,
         Property {
             group: p.group.clone(),
@@ -271,7 +270,7 @@ fn property_to_py(py: Python<'_>, p: &core::Property) -> PyResult<Py<Property>> 
                 .collect::<PyResult<Vec<_>>>()?,
             value: p.value.clone(),
         },
-    )?)
+    )
 }
 
 fn component_to_py(py: Python<'_>, c: &core::Component) -> PyResult<Py<Component>> {
@@ -348,12 +347,7 @@ fn py_to_component_at(py: Python<'_>, c: &Component, depth: usize) -> PyResult<c
 /// Parse a document. Returns (components, repairs).
 #[pyfunction]
 #[pyo3(signature = (text, strict = false, max_depth = 512))]
-fn parse(
-    py: Python<'_>,
-    text: &str,
-    strict: bool,
-    max_depth: usize,
-) -> PyResult<(Vec<Py<Component>>, Vec<Py<Repair>>)> {
+fn parse(py: Python<'_>, text: &str, strict: bool, max_depth: usize) -> PyResult<ParsedDocument> {
     let options = core::ParseOptions {
         strictness: if strict {
             core::Strictness::Strict
@@ -401,7 +395,7 @@ fn parse_bytes(
     data: &[u8],
     strict: bool,
     max_depth: usize,
-) -> PyResult<(Vec<Py<Component>>, Vec<Py<Repair>>)> {
+) -> PyResult<ParsedDocument> {
     let options = core::ParseOptions {
         strictness: if strict {
             core::Strictness::Strict
@@ -463,8 +457,7 @@ fn serialize(
 #[pyfunction]
 fn unescape_text(text: &str) -> String {
     let mut repairs = Vec::new();
-    core::escape::unescape_text(text, Some(&mut repairs), 1)
-        .expect("lenient unescape is total")
+    core::escape::unescape_text(text, Some(&mut repairs), 1).expect("lenient unescape is total")
 }
 
 /// Escape a string as a TEXT value.
@@ -577,12 +570,10 @@ fn typed_value(py: Python<'_>, prop: &Property, dialect: &str) -> PyResult<(Stri
                 .into_iter()
                 .map(|p| match p.end {
                     v::PeriodEnd::End(e) => {
-                        (dt_tuple(p.start), "end", dt_tuple(e).into_py_any(py)?)
-                            .into_py_any(py)
+                        (dt_tuple(p.start), "end", dt_tuple(e).into_py_any(py)?).into_py_any(py)
                     }
                     v::PeriodEnd::Duration(d) => {
-                        (dt_tuple(p.start), "duration", d.total_seconds())
-                            .into_py_any(py)
+                        (dt_tuple(p.start), "duration", d.total_seconds()).into_py_any(py)
                     }
                 })
                 .collect::<PyResult<_>>()?;
@@ -630,8 +621,7 @@ fn expand_rrule(
     use vobject_core::value::{DateOrDateTime, Recur};
 
     let recur = Recur::parse(rule).map_err(|e| ParseError::new_err(e.to_string()))?;
-    let start =
-        DateOrDateTime::parse(dtstart).map_err(|e| ParseError::new_err(e.to_string()))?;
+    let start = DateOrDateTime::parse(dtstart).map_err(|e| ParseError::new_err(e.to_string()))?;
     let mut limits = ExpandLimits::default();
     if let Some(y) = max_years {
         limits.max_years = y;
@@ -639,8 +629,7 @@ fn expand_rrule(
     if let Some(n) = max_empty_periods {
         limits.max_empty_periods = n;
     }
-    let iter =
-        expand(&recur, start, limits).map_err(|e| ParseError::new_err(e.to_string()))?;
+    let iter = expand(&recur, start, limits).map_err(|e| ParseError::new_err(e.to_string()))?;
     let out: Vec<Py<PyAny>> = iter
         .take(limit)
         .map(|d| match d {

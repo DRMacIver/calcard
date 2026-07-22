@@ -110,11 +110,7 @@ impl<'c> Engine<'c> {
 
     /// Resolve a requested month within a year, applying SKIP for months
     /// the year does not contain. Returns the chosen slot, or None (OMIT).
-    fn resolve_month(
-        &self,
-        months: &[MonthSlot],
-        want: RecurMonth,
-    ) -> Option<MonthSlot> {
+    fn resolve_month(&self, months: &[MonthSlot], want: RecurMonth) -> Option<MonthSlot> {
         let found = months
             .iter()
             .find(|s| s.month.number() == want.month && s.month.is_leap() == want.leap);
@@ -184,12 +180,7 @@ impl<'c> Engine<'c> {
     }
 
     /// Resolve a (possibly negative) day-of-year with SKIP.
-    fn resolve_year_day(
-        &self,
-        months: &[MonthSlot],
-        days_in_year: i64,
-        day: i16,
-    ) -> Option<i64> {
+    fn resolve_year_day(&self, months: &[MonthSlot], days_in_year: i64, day: i16) -> Option<i64> {
         let year_start = months[0].first_iso;
         let target = if day > 0 {
             day as i64
@@ -647,7 +638,11 @@ mod tests {
     #[test]
     fn gregorian_skip_backward_monthly() {
         assert_eq!(
-            run("RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=BACKWARD;COUNT=4", "20140131", 10),
+            run(
+                "RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=BACKWARD;COUNT=4",
+                "20140131",
+                10
+            ),
             vec!["20140131", "20140228", "20140331", "20140430"]
         );
     }
@@ -655,7 +650,11 @@ mod tests {
     #[test]
     fn gregorian_skip_forward_monthly() {
         assert_eq!(
-            run("RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=FORWARD;COUNT=4", "20140131", 10),
+            run(
+                "RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=FORWARD;COUNT=4",
+                "20140131",
+                10
+            ),
             vec!["20140131", "20140301", "20140331", "20140501"]
         );
     }

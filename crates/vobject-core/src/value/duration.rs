@@ -56,11 +56,8 @@ impl Duration {
     /// constructed values whose magnitude overflows (parsed durations never
     /// do — see [`Duration::parse`]).
     pub fn total_seconds(&self) -> i64 {
-        self.checked_total_seconds().unwrap_or(if self.negative {
-            i64::MIN
-        } else {
-            i64::MAX
-        })
+        self.checked_total_seconds()
+            .unwrap_or(if self.negative { i64::MIN } else { i64::MAX })
     }
 
     /// Parse `[+/-] "P" (weeks / date-time parts)`.
@@ -225,7 +222,9 @@ mod tests {
 
     #[test]
     fn parse_rejects_garbage() {
-        for bad in ["", "P", "PT", "15D", "P15X", "PT5D", "P1DT", "P-1D", "PT1H30", "Q1D"] {
+        for bad in [
+            "", "P", "PT", "15D", "P15X", "PT5D", "P1DT", "P-1D", "PT1H30", "Q1D",
+        ] {
             assert!(Duration::parse(bad).is_err(), "{bad:?} should fail");
         }
     }
@@ -240,7 +239,15 @@ mod tests {
 
     #[test]
     fn display_round_trip() {
-        for s in ["P15DT5H20S", "P7W", "PT2H", "-PT30M", "P1D", "PT0S", "P1W2DT3H4M5S"] {
+        for s in [
+            "P15DT5H20S",
+            "P7W",
+            "PT2H",
+            "-PT30M",
+            "P1D",
+            "PT0S",
+            "P1W2DT3H4M5S",
+        ] {
             let d = Duration::parse(s).unwrap();
             assert_eq!(Duration::parse(&d.to_string()).unwrap(), d, "{s}");
         }

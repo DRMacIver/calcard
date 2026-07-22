@@ -31,8 +31,7 @@ fn corpus() -> Vec<PathBuf> {
                 let name = path.file_name().unwrap().to_string_lossy().to_string();
                 let ext = path.extension().map(|e| e.to_string_lossy().to_string());
                 if matches!(ext.as_deref(), Some("ics") | Some("vcf"))
-                    || (path.parent().unwrap().file_name().unwrap() == "fuzz"
-                        && name != "LICENSE")
+                    || (path.parent().unwrap().file_name().unwrap() == "fuzz" && name != "LICENSE")
                 {
                     files.push(path);
                 }
