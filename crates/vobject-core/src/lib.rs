@@ -33,11 +33,13 @@
 
 pub mod contentline;
 pub mod error;
+pub mod jcal;
 pub mod escape;
 pub mod fold;
 pub mod lines;
 pub mod model;
 pub mod parse;
+pub mod value;
 pub mod write;
 
 pub use error::{ErrorKind, Location, ParseError, Repair, RepairKind};

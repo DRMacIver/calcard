@@ -1,0 +1,3 @@
+BEGIN:VCALENDAR
+PROPNAME;PARAMNAME=paramvalue:propValue:anotherrandomstring
+END:VCALENDAR

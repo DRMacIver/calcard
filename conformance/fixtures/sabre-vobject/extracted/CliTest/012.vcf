@@ -1,0 +1,5 @@
+/^BEGIN:VCARD
+VERSION:2.1
+UID:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+END:VCARD
+$/

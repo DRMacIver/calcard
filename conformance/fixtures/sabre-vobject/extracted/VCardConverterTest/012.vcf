@@ -1,0 +1,6 @@
+BEGIN:VCARD
+VERSION:4.0
+KIND:GROUP
+MEMBER:mailto:someone@example.com
+MEMBER:mailto:sometwo@example.com
+END:VCARD

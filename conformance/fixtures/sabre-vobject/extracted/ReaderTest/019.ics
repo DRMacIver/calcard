@@ -1,0 +1,3 @@
+BEGIN:VCALENDAR
+PROPNAME;PARAMNAME=paramvalue1^nvalue2^^nvalue3:propValue
+END:VCALENDAR

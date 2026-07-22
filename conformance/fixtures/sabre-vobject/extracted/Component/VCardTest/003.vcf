@@ -1,0 +1,5 @@
+BEGIN:VCARD
+VERSION:3.0
+EMAIL:1@example.org
+EMAIL:2@example.org
+END:VCARD

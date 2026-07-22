@@ -1,0 +1,2085 @@
+{
+  "files": {
+    "AttachIssueTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/AttachIssueTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/001.vcf": {
+      "line_number": 14,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/002.ics": {
+      "line_number": 24,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/003.vcf": {
+      "line_number": 53,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/004.vcf": {
+      "line_number": 63,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/005.ics": {
+      "line_number": 73,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/006.vcf": {
+      "line_number": 110,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/007.vcf": {
+      "line_number": 120,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/008.ics": {
+      "line_number": 132,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/009.vcf": {
+      "line_number": 168,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/010.ics": {
+      "line_number": 180,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/011.vcf": {
+      "line_number": 209,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/012.vcf": {
+      "line_number": 219,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/013.ics": {
+      "line_number": 233,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/014.vcf": {
+      "line_number": 269,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/015.ics": {
+      "line_number": 279,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/016.vcf": {
+      "line_number": 306,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/017.ics": {
+      "line_number": 316,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/018.vcf": {
+      "line_number": 343,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/019.ics": {
+      "line_number": 353,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/020.vcf": {
+      "line_number": 371,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/021.ics": {
+      "line_number": 380,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/022.vcf": {
+      "line_number": 398,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/023.ics": {
+      "line_number": 408,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/024.vcf": {
+      "line_number": 436,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/025.ics": {
+      "line_number": 446,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/026.ics": {
+      "line_number": 465,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/027.ics": {
+      "line_number": 478,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/028.vcf": {
+      "line_number": 497,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/029.vcf": {
+      "line_number": 519,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "BirthdayCalendarGeneratorTest/030.ics": {
+      "line_number": 528,
+      "source_file": "tests/VObject/BirthdayCalendarGeneratorTest.php"
+    },
+    "CliTest/001.vcf": {
+      "line_number": 132,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/002.vcf": {
+      "line_number": 163,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/003.vcf": {
+      "line_number": 200,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/004.vcf": {
+      "line_number": 261,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/005.vcf": {
+      "line_number": 320,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/006.vcf": {
+      "line_number": 359,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/007.vcf": {
+      "line_number": 398,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/008.vcf": {
+      "line_number": 420,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/009.ics": {
+      "line_number": 444,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/010.ics": {
+      "line_number": 464,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/011.vcf": {
+      "line_number": 484,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/012.vcf": {
+      "line_number": 500,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "CliTest/013.ics": {
+      "line_number": 509,
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    "Component/AvailableTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/Component/AvailableTest.php"
+    },
+    "Component/AvailableTest/002.ics": {
+      "line_number": 28,
+      "source_file": "tests/VObject/Component/AvailableTest.php"
+    },
+    "Component/AvailableTest/003.ics": {
+      "line_number": 50,
+      "source_file": "tests/VObject/Component/AvailableTest.php"
+    },
+    "Component/VAlarmTest/001.ics": {
+      "line_number": 160,
+      "source_file": "tests/VObject/Component/VAlarmTest.php"
+    },
+    "Component/VAvailabilityTest/001.ics": {
+      "line_number": 17,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/002.ics": {
+      "line_number": 30,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/003.ics": {
+      "line_number": 52,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/004.ics": {
+      "line_number": 74,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/005.ics": {
+      "line_number": 93,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/006.ics": {
+      "line_number": 108,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/007.ics": {
+      "line_number": 127,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/008.ics": {
+      "line_number": 141,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/009.ics": {
+      "line_number": 153,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/010.ics": {
+      "line_number": 166,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/011.ics": {
+      "line_number": 227,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/012.ics": {
+      "line_number": 244,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/013.ics": {
+      "line_number": 263,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/014.ics": {
+      "line_number": 279,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/015.ics": {
+      "line_number": 297,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/016.ics": {
+      "line_number": 315,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/017.ics": {
+      "line_number": 428,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VAvailabilityTest/018.ics": {
+      "line_number": 446,
+      "source_file": "tests/VObject/Component/VAvailabilityTest.php"
+    },
+    "Component/VCalendarTest/001.ics": {
+      "line_number": 38,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/002.ics": {
+      "line_number": 48,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/003.ics": {
+      "line_number": 64,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/004.ics": {
+      "line_number": 78,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/005.ics": {
+      "line_number": 92,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/006.ics": {
+      "line_number": 106,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/007.ics": {
+      "line_number": 123,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/008.ics": {
+      "line_number": 140,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/009.ics": {
+      "line_number": 153,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/010.ics": {
+      "line_number": 197,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/011.ics": {
+      "line_number": 217,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/012.ics": {
+      "line_number": 261,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/013.ics": {
+      "line_number": 280,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/014.ics": {
+      "line_number": 307,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/015.ics": {
+      "line_number": 321,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/016.ics": {
+      "line_number": 335,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/017.ics": {
+      "line_number": 360,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/018.ics": {
+      "line_number": 387,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/019.ics": {
+      "line_number": 405,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/020.ics": {
+      "line_number": 422,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/021.ics": {
+      "line_number": 440,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/022.ics": {
+      "line_number": 457,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/023.ics": {
+      "line_number": 476,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/024.ics": {
+      "line_number": 495,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/025.ics": {
+      "line_number": 518,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/026.ics": {
+      "line_number": 542,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/027.ics": {
+      "line_number": 569,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/028.ics": {
+      "line_number": 597,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/029.ics": {
+      "line_number": 624,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/030.ics": {
+      "line_number": 644,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/031.ics": {
+      "line_number": 661,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/032.ics": {
+      "line_number": 681,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/033.ics": {
+      "line_number": 708,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/034.ics": {
+      "line_number": 736,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCalendarTest/035.ics": {
+      "line_number": 760,
+      "source_file": "tests/VObject/Component/VCalendarTest.php"
+    },
+    "Component/VCardTest/001.vcf": {
+      "line_number": 134,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/002.vcf": {
+      "line_number": 151,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/003.vcf": {
+      "line_number": 172,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/004.vcf": {
+      "line_number": 186,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/005.vcf": {
+      "line_number": 200,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/006.vcf": {
+      "line_number": 215,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/007.vcf": {
+      "line_number": 227,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/008.vcf": {
+      "line_number": 243,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/009.vcf": {
+      "line_number": 259,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/010.vcf": {
+      "line_number": 275,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VCardTest/011.vcf": {
+      "line_number": 292,
+      "source_file": "tests/VObject/Component/VCardTest.php"
+    },
+    "Component/VFreeBusyTest/001.ics": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Component/VFreeBusyTest.php"
+    },
+    "Component/VFreeBusyTest/002.ics": {
+      "line_number": 42,
+      "source_file": "tests/VObject/Component/VFreeBusyTest.php"
+    },
+    "Component/VJournalTest/001.ics": {
+      "line_number": 19,
+      "source_file": "tests/VObject/Component/VJournalTest.php"
+    },
+    "Component/VJournalTest/002.ics": {
+      "line_number": 43,
+      "source_file": "tests/VObject/Component/VJournalTest.php"
+    },
+    "Component/VTimeZoneTest/001.ics": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Component/VTimeZoneTest.php"
+    },
+    "Component/VTimeZoneTest/002.ics": {
+      "line_number": 35,
+      "source_file": "tests/VObject/Component/VTimeZoneTest.php"
+    },
+    "Component/VTodoTest/001.ics": {
+      "line_number": 68,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "Component/VTodoTest/002.ics": {
+      "line_number": 92,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "Component/VTodoTest/003.ics": {
+      "line_number": 117,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "Component/VTodoTest/004.ics": {
+      "line_number": 142,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "Component/VTodoTest/005.ics": {
+      "line_number": 170,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "Component/VTodoTest/006.ics": {
+      "line_number": 198,
+      "source_file": "tests/VObject/Component/VTodoTest.php"
+    },
+    "EmClientTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/EmClientTest.php"
+    },
+    "EmptyParameterTest/001.vcf": {
+      "line_number": 11,
+      "source_file": "tests/VObject/EmptyParameterTest.php"
+    },
+    "EmptyValueIssueTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/EmptyValueIssueTest.php"
+    },
+    "FreeBusyGeneratorTest/001.ics": {
+      "line_number": 86,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/002.ics": {
+      "line_number": 104,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/003.ics": {
+      "line_number": 128,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/004.ics": {
+      "line_number": 151,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/005.ics": {
+      "line_number": 174,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/006.ics": {
+      "line_number": 197,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/007.ics": {
+      "line_number": 220,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/008.ics": {
+      "line_number": 242,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/009.ics": {
+      "line_number": 264,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/010.ics": {
+      "line_number": 286,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/011.ics": {
+      "line_number": 307,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/012.ics": {
+      "line_number": 328,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/013.ics": {
+      "line_number": 350,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/014.ics": {
+      "line_number": 372,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/015.ics": {
+      "line_number": 392,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/016.ics": {
+      "line_number": 412,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/017.ics": {
+      "line_number": 431,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/018.ics": {
+      "line_number": 451,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/019.ics": {
+      "line_number": 469,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/020.ics": {
+      "line_number": 488,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/021.ics": {
+      "line_number": 512,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/022.ics": {
+      "line_number": 522,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/023.ics": {
+      "line_number": 551,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/024.ics": {
+      "line_number": 561,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/025.ics": {
+      "line_number": 588,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/026.ics": {
+      "line_number": 598,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/027.ics": {
+      "line_number": 629,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/028.ics": {
+      "line_number": 639,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/029.ics": {
+      "line_number": 677,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "FreeBusyGeneratorTest/030.ics": {
+      "line_number": 687,
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    "GoogleColonEscapingTest/001.vcf": {
+      "line_number": 17,
+      "source_file": "tests/VObject/GoogleColonEscapingTest.php"
+    },
+    "ICalendar/AttachParseTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/ICalendar/AttachParseTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/001.ics": {
+      "line_number": 9,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/002.ics": {
+      "line_number": 23,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/003.ics": {
+      "line_number": 73,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/004.ics": {
+      "line_number": 105,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/005.ics": {
+      "line_number": 191,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/006.ics": {
+      "line_number": 206,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/007.ics": {
+      "line_number": 337,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/008.ics": {
+      "line_number": 351,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/009.ics": {
+      "line_number": 476,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/010.ics": {
+      "line_number": 489,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/011.ics": {
+      "line_number": 508,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/012.ics": {
+      "line_number": 521,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/013.ics": {
+      "line_number": 567,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/014.ics": {
+      "line_number": 580,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/015.ics": {
+      "line_number": 607,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/016.ics": {
+      "line_number": 621,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/017.ics": {
+      "line_number": 676,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/018.ics": {
+      "line_number": 690,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/019.ics": {
+      "line_number": 742,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/020.ics": {
+      "line_number": 757,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/021.ics": {
+      "line_number": 808,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/022.ics": {
+      "line_number": 821,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/023.ics": {
+      "line_number": 869,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/024.ics": {
+      "line_number": 883,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/025.ics": {
+      "line_number": 913,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/026.ics": {
+      "line_number": 936,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/027.ics": {
+      "line_number": 958,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/028.ics": {
+      "line_number": 971,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/029.ics": {
+      "line_number": 990,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/030.ics": {
+      "line_number": 1003,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/031.ics": {
+      "line_number": 1058,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/032.ics": {
+      "line_number": 1073,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/033.ics": {
+      "line_number": 1097,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/034.ics": {
+      "line_number": 1128,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/035.ics": {
+      "line_number": 1151,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/036.ics": {
+      "line_number": 1184,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/037.ics": {
+      "line_number": 1212,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerAttendeeReplyTest/038.ics": {
+      "line_number": 1274,
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/002.ics": {
+      "line_number": 94,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/003.ics": {
+      "line_number": 177,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/004.ics": {
+      "line_number": 232,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/005.ics": {
+      "line_number": 287,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerDeleteEventTest/006.ics": {
+      "line_number": 317,
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/002.ics": {
+      "line_number": 26,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/003.ics": {
+      "line_number": 39,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/004.ics": {
+      "line_number": 89,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/005.ics": {
+      "line_number": 111,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/006.ics": {
+      "line_number": 132,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/007.ics": {
+      "line_number": 262,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/008.ics": {
+      "line_number": 389,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/009.ics": {
+      "line_number": 439,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/010.ics": {
+      "line_number": 458,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/011.ics": {
+      "line_number": 488,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/012.ics": {
+      "line_number": 517,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/013.ics": {
+      "line_number": 564,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/014.ics": {
+      "line_number": 580,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerNewEventTest/015.ics": {
+      "line_number": 601,
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/001.ics": {
+      "line_number": 9,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/002.ics": {
+      "line_number": 20,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/003.ics": {
+      "line_number": 35,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/004.ics": {
+      "line_number": 46,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/005.ics": {
+      "line_number": 55,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/006.ics": {
+      "line_number": 69,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/007.ics": {
+      "line_number": 80,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/008.ics": {
+      "line_number": 89,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/009.ics": {
+      "line_number": 104,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/010.ics": {
+      "line_number": 123,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessMessageTest/011.ics": {
+      "line_number": 141,
+      "source_file": "tests/VObject/ITip/BrokerProcessMessageTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/001.ics": {
+      "line_number": 9,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/002.ics": {
+      "line_number": 30,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/003.ics": {
+      "line_number": 43,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/004.ics": {
+      "line_number": 55,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/005.ics": {
+      "line_number": 72,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/006.ics": {
+      "line_number": 104,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/007.ics": {
+      "line_number": 135,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/008.ics": {
+      "line_number": 171,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/009.ics": {
+      "line_number": 186,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/010.ics": {
+      "line_number": 198,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/011.ics": {
+      "line_number": 215,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/012.ics": {
+      "line_number": 228,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/013.ics": {
+      "line_number": 240,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/014.ics": {
+      "line_number": 258,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/015.ics": {
+      "line_number": 272,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/016.ics": {
+      "line_number": 296,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/017.ics": {
+      "line_number": 327,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/018.ics": {
+      "line_number": 341,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/019.ics": {
+      "line_number": 356,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/020.ics": {
+      "line_number": 387,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/021.ics": {
+      "line_number": 401,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/022.ics": {
+      "line_number": 416,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/023.ics": {
+      "line_number": 447,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/024.ics": {
+      "line_number": 461,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/025.ics": {
+      "line_number": 476,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/026.ics": {
+      "line_number": 507,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/027.ics": {
+      "line_number": 521,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/028.ics": {
+      "line_number": 536,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/029.ics": {
+      "line_number": 570,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/030.ics": {
+      "line_number": 584,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/031.ics": {
+      "line_number": 598,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/032.ics": {
+      "line_number": 633,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/033.ics": {
+      "line_number": 647,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/034.ics": {
+      "line_number": 671,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/035.ics": {
+      "line_number": 684,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/036.ics": {
+      "line_number": 696,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/037.ics": {
+      "line_number": 715,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/038.ics": {
+      "line_number": 729,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerProcessReplyTest/039.ics": {
+      "line_number": 744,
+      "source_file": "tests/VObject/ITip/BrokerProcessReplyTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/001.ics": {
+      "line_number": 12,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/002.ics": {
+      "line_number": 46,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/003.ics": {
+      "line_number": 80,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/004.ics": {
+      "line_number": 116,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/005.ics": {
+      "line_number": 159,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/006.ics": {
+      "line_number": 177,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerSignificantChangesTest/007.ics": {
+      "line_number": 195,
+      "source_file": "tests/VObject/ITip/BrokerSignificantChangesTest.php"
+    },
+    "ITip/BrokerTimezoneInParseEventInfoWithoutMasterTest/001.ics": {
+      "line_number": 12,
+      "source_file": "tests/VObject/ITip/BrokerTimezoneInParseEventInfoWithoutMasterTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/002.ics": {
+      "line_number": 28,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/003.ics": {
+      "line_number": 143,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/004.ics": {
+      "line_number": 155,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/005.ics": {
+      "line_number": 205,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/006.ics": {
+      "line_number": 219,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/007.ics": {
+      "line_number": 263,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/008.ics": {
+      "line_number": 275,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/009.ics": {
+      "line_number": 293,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/010.ics": {
+      "line_number": 308,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/011.ics": {
+      "line_number": 368,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/012.ics": {
+      "line_number": 385,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/013.ics": {
+      "line_number": 499,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/014.ics": {
+      "line_number": 514,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/015.ics": {
+      "line_number": 567,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/016.ics": {
+      "line_number": 582,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/017.ics": {
+      "line_number": 635,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/018.ics": {
+      "line_number": 652,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/019.ics": {
+      "line_number": 731,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/020.ics": {
+      "line_number": 755,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/021.ics": {
+      "line_number": 820,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/022.ics": {
+      "line_number": 835,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/023.ics": {
+      "line_number": 887,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/024.ics": {
+      "line_number": 904,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/025.ics": {
+      "line_number": 977,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/BrokerUpdateEventTest/026.ics": {
+      "line_number": 994,
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    "ITip/EvolutionTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/ITip/EvolutionTest.php"
+    },
+    "ITip/EvolutionTest/002.ics": {
+      "line_number": 1748,
+      "source_file": "tests/VObject/ITip/EvolutionTest.php"
+    },
+    "ITip/EvolutionTest/003.ics": {
+      "line_number": 2603,
+      "source_file": "tests/VObject/ITip/EvolutionTest.php"
+    },
+    "Issue36WorkAroundTest/001.ics": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Issue36WorkAroundTest.php"
+    },
+    "Issue467Test/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/Issue467Test.php"
+    },
+    "Issue96Test/001.vcf": {
+      "line_number": 11,
+      "source_file": "tests/VObject/Issue96Test.php"
+    },
+    "IssueUndefinedIndexTest/001.vcf": {
+      "line_number": 12,
+      "source_file": "tests/VObject/IssueUndefinedIndexTest.php"
+    },
+    "LineFoldingIssueTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/LineFoldingIssueTest.php"
+    },
+    "Parser/MimeDirTest/001.vcf": {
+      "line_number": 25,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/002.vcf": {
+      "line_number": 40,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/003.vcf": {
+      "line_number": 54,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/004.vcf": {
+      "line_number": 68,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/005.vcf": {
+      "line_number": 94,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/006.vcf": {
+      "line_number": 124,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/007.vcf": {
+      "line_number": 139,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/008.vcf": {
+      "line_number": 153,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/009.ics": {
+      "line_number": 170,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/010.ics": {
+      "line_number": 214,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/011.ics": {
+      "line_number": 236,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/012.ics": {
+      "line_number": 262,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/MimeDirTest/013.vcf": {
+      "line_number": 282,
+      "source_file": "tests/VObject/Parser/MimeDirTest.php"
+    },
+    "Parser/QuotedPrintableTest/001.vcf": {
+      "line_number": 14,
+      "source_file": "tests/VObject/Parser/QuotedPrintableTest.php"
+    },
+    "Parser/QuotedPrintableTest/002.vcf": {
+      "line_number": 26,
+      "source_file": "tests/VObject/Parser/QuotedPrintableTest.php"
+    },
+    "Parser/QuotedPrintableTest/003.vcf": {
+      "line_number": 37,
+      "source_file": "tests/VObject/Parser/QuotedPrintableTest.php"
+    },
+    "Parser/QuotedPrintableTest/004.vcf": {
+      "line_number": 48,
+      "source_file": "tests/VObject/Parser/QuotedPrintableTest.php"
+    },
+    "Parser/QuotedPrintableTest/005.vcf": {
+      "line_number": 59,
+      "source_file": "tests/VObject/Parser/QuotedPrintableTest.php"
+    },
+    "Property/BooleanTest/001.vcf": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Property/BooleanTest.php"
+    },
+    "Property/FloatTest/001.vcf": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Property/FloatTest.php"
+    },
+    "Property/ICalendar/RecurTest/001.ics": {
+      "line_number": 46,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/ICalendar/RecurTest/002.ics": {
+      "line_number": 80,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/ICalendar/RecurTest/003.ics": {
+      "line_number": 101,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/ICalendar/RecurTest/004.ics": {
+      "line_number": 127,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/ICalendar/RecurTest/005.ics": {
+      "line_number": 151,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/ICalendar/RecurTest/006.ics": {
+      "line_number": 177,
+      "source_file": "tests/VObject/Property/ICalendar/RecurTest.php"
+    },
+    "Property/TextTest/001.vcf": {
+      "line_number": 69,
+      "source_file": "tests/VObject/Property/TextTest.php"
+    },
+    "Property/UriTest/001.ics": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Property/UriTest.php"
+    },
+    "Property/VCard/DateAndOrTimeTest/001.vcf": {
+      "line_number": 209,
+      "source_file": "tests/VObject/Property/VCard/DateAndOrTimeTest.php"
+    },
+    "Property/VCard/LanguageTagTest/001.vcf": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Property/VCard/LanguageTagTest.php"
+    },
+    "Property/VCard/LanguageTagTest/002.vcf": {
+      "line_number": 29,
+      "source_file": "tests/VObject/Property/VCard/LanguageTagTest.php"
+    },
+    "Property/VCard/LanguageTagTest/003.vcf": {
+      "line_number": 41,
+      "source_file": "tests/VObject/Property/VCard/LanguageTagTest.php"
+    },
+    "Property/VCard/PhoneNumberTest/001.vcf": {
+      "line_number": 12,
+      "source_file": "tests/VObject/Property/VCard/PhoneNumberTest.php"
+    },
+    "ReaderTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/002.ics": {
+      "line_number": 22,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/003.ics": {
+      "line_number": 37,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/004.ics": {
+      "line_number": 48,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/005.ics": {
+      "line_number": 60,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/006.ics": {
+      "line_number": 68,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/007.ics": {
+      "line_number": 75,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/008.ics": {
+      "line_number": 86,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/009.ics": {
+      "line_number": 97,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/010.ics": {
+      "line_number": 108,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/011.ics": {
+      "line_number": 119,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/012.ics": {
+      "line_number": 172,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/013.ics": {
+      "line_number": 187,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/014.ics": {
+      "line_number": 203,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/015.ics": {
+      "line_number": 219,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/016.ics": {
+      "line_number": 235,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/017.ics": {
+      "line_number": 250,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/018.ics": {
+      "line_number": 267,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/019.ics": {
+      "line_number": 282,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/020.ics": {
+      "line_number": 298,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "ReaderTest/021.ics": {
+      "line_number": 375,
+      "source_file": "tests/VObject/ReaderTest.php"
+    },
+    "Recur/EventIterator/ByMonthInDailyTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/Recur/EventIterator/ByMonthInDailyTest.php"
+    },
+    "Recur/EventIterator/BySetPosHangTest/001.ics": {
+      "line_number": 19,
+      "source_file": "tests/VObject/Recur/EventIterator/BySetPosHangTest.php"
+    },
+    "Recur/EventIterator/ExpandFloatingTimesTest/001.ics": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Recur/EventIterator/ExpandFloatingTimesTest.php"
+    },
+    "Recur/EventIterator/ExpandFloatingTimesTest/002.ics": {
+      "line_number": 31,
+      "source_file": "tests/VObject/Recur/EventIterator/ExpandFloatingTimesTest.php"
+    },
+    "Recur/EventIterator/ExpandFloatingTimesTest/003.ics": {
+      "line_number": 66,
+      "source_file": "tests/VObject/Recur/EventIterator/ExpandFloatingTimesTest.php"
+    },
+    "Recur/EventIterator/ExpandFloatingTimesTest/004.ics": {
+      "line_number": 87,
+      "source_file": "tests/VObject/Recur/EventIterator/ExpandFloatingTimesTest.php"
+    },
+    "Recur/EventIterator/FifthTuesdayProblemTest/001.ics": {
+      "line_number": 19,
+      "source_file": "tests/VObject/Recur/EventIterator/FifthTuesdayProblemTest.php"
+    },
+    "Recur/EventIterator/HandleRDateExpandTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/Recur/EventIterator/HandleRDateExpandTest.php"
+    },
+    "Recur/EventIterator/IncorrectExpandTest/001.ics": {
+      "line_number": 18,
+      "source_file": "tests/VObject/Recur/EventIterator/IncorrectExpandTest.php"
+    },
+    "Recur/EventIterator/IncorrectExpandTest/002.ics": {
+      "line_number": 41,
+      "source_file": "tests/VObject/Recur/EventIterator/IncorrectExpandTest.php"
+    },
+    "Recur/EventIterator/Issue26Test/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/Recur/EventIterator/Issue26Test.php"
+    },
+    "Recur/EventIterator/Issue48Test/001.ics": {
+      "line_number": 14,
+      "source_file": "tests/VObject/Recur/EventIterator/Issue48Test.php"
+    },
+    "Recur/EventIterator/Issue50Test/001.ics": {
+      "line_number": 14,
+      "source_file": "tests/VObject/Recur/EventIterator/Issue50Test.php"
+    },
+    "Recur/EventIterator/MaxInstancesTest/001.ics": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Recur/EventIterator/MaxInstancesTest.php"
+    },
+    "Recur/EventIterator/MissingOverriddenTest/001.ics": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Recur/EventIterator/MissingOverriddenTest.php"
+    },
+    "Recur/EventIterator/MissingOverriddenTest/002.ics": {
+      "line_number": 40,
+      "source_file": "tests/VObject/Recur/EventIterator/MissingOverriddenTest.php"
+    },
+    "Recur/EventIterator/NoInstancesTest/001.ics": {
+      "line_number": 16,
+      "source_file": "tests/VObject/Recur/EventIterator/NoInstancesTest.php"
+    },
+    "Recur/EventIterator/OverrideDurationTest/001.ics": {
+      "line_number": 15,
+      "source_file": "tests/VObject/Recur/EventIterator/OverrideDurationTest.php"
+    },
+    "Recur/EventIterator/OverrideFirstEventTest/001.ics": {
+      "line_number": 14,
+      "source_file": "tests/VObject/Recur/EventIterator/OverrideFirstEventTest.php"
+    },
+    "Recur/EventIterator/OverrideFirstEventTest/002.ics": {
+      "line_number": 35,
+      "source_file": "tests/VObject/Recur/EventIterator/OverrideFirstEventTest.php"
+    },
+    "Recur/EventIterator/OverrideFirstEventTest/003.ics": {
+      "line_number": 79,
+      "source_file": "tests/VObject/Recur/EventIterator/OverrideFirstEventTest.php"
+    },
+    "Recur/EventIterator/OverrideFirstEventTest/004.ics": {
+      "line_number": 95,
+      "source_file": "tests/VObject/Recur/EventIterator/OverrideFirstEventTest.php"
+    },
+    "Recur/EventIterator/SameDateForRecurringEventsTest/001.ics": {
+      "line_number": 21,
+      "source_file": "tests/VObject/Recur/EventIterator/SameDateForRecurringEventsTest.php"
+    },
+    "Splitter/ICalendarTest/001.ics": {
+      "line_number": 29,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/002.vcf": {
+      "line_number": 52,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/003.ics": {
+      "line_number": 67,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/004.ics": {
+      "line_number": 98,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/005.ics": {
+      "line_number": 106,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/006.ics": {
+      "line_number": 184,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/007.ics": {
+      "line_number": 222,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/008.ics": {
+      "line_number": 230,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/009.ics": {
+      "line_number": 238,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/ICalendarTest/010.ics": {
+      "line_number": 284,
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    "Splitter/VCardTest/001.vcf": {
+      "line_number": 21,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/002.ics": {
+      "line_number": 41,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/003.ics": {
+      "line_number": 49,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/004.vcf": {
+      "line_number": 74,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/005.vcf": {
+      "line_number": 106,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/006.vcf": {
+      "line_number": 126,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/007.vcf": {
+      "line_number": 149,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/008.ics": {
+      "line_number": 165,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/009.vcf": {
+      "line_number": 178,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/010.vcf": {
+      "line_number": 199,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "Splitter/VCardTest/011.vcf": {
+      "line_number": 223,
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    "TimeZoneUtilTest/001.ics": {
+      "line_number": 48,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "TimeZoneUtilTest/002.ics": {
+      "line_number": 88,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "TimeZoneUtilTest/003.ics": {
+      "line_number": 113,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "TimeZoneUtilTest/004.ics": {
+      "line_number": 232,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "TimeZoneUtilTest/005.ics": {
+      "line_number": 270,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "TimeZoneUtilTest/006.ics": {
+      "line_number": 316,
+      "source_file": "tests/VObject/TimeZoneUtilTest.php"
+    },
+    "VCard21Test/001.vcf": {
+      "line_number": 14,
+      "source_file": "tests/VObject/VCard21Test.php"
+    },
+    "VCard21Test/002.vcf": {
+      "line_number": 30,
+      "source_file": "tests/VObject/VCard21Test.php"
+    },
+    "VCard21Test/003.vcf": {
+      "line_number": 41,
+      "source_file": "tests/VObject/VCard21Test.php"
+    },
+    "VCardConverterTest/001.vcf": {
+      "line_number": 17,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/002.vcf": {
+      "line_number": 33,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/003.vcf": {
+      "line_number": 63,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/004.vcf": {
+      "line_number": 76,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/005.vcf": {
+      "line_number": 104,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/006.vcf": {
+      "line_number": 118,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/007.vcf": {
+      "line_number": 146,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/008.vcf": {
+      "line_number": 160,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/009.vcf": {
+      "line_number": 189,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/010.vcf": {
+      "line_number": 204,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/011.vcf": {
+      "line_number": 233,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/012.vcf": {
+      "line_number": 244,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/013.vcf": {
+      "line_number": 264,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/014.vcf": {
+      "line_number": 289,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/015.vcf": {
+      "line_number": 298,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/016.vcf": {
+      "line_number": 316,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/017.vcf": {
+      "line_number": 340,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/018.vcf": {
+      "line_number": 368,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/019.vcf": {
+      "line_number": 386,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/020.vcf": {
+      "line_number": 395,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/021.vcf": {
+      "line_number": 412,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/022.vcf": {
+      "line_number": 434,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/023.vcf": {
+      "line_number": 442,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/024.vcf": {
+      "line_number": 485,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/025.vcf": {
+      "line_number": 495,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/026.vcf": {
+      "line_number": 544,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/027.vcf": {
+      "line_number": 588,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "VCardConverterTest/028.vcf": {
+      "line_number": 598,
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    },
+    "WriterTest/001.ics": {
+      "line_number": 11,
+      "source_file": "tests/VObject/WriterTest.php"
+    }
+  },
+  "skipped": [
+    {
+      "line_number": 340,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    {
+      "line_number": 379,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    {
+      "line_number": 553,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    {
+      "line_number": 599,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/CliTest.php"
+    },
+    {
+      "line_number": 34,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/EmptyParameterTest.php"
+    },
+    {
+      "line_number": 70,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/FreeBusyGeneratorTest.php"
+    },
+    {
+      "line_number": 48,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 148,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 271,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 415,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 544,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 646,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 715,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 783,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 845,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 1027,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 1237,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 1299,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerAttendeeReplyTest.php"
+    },
+    {
+      "line_number": 40,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 68,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 123,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 151,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 206,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 261,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerDeleteEventTest.php"
+    },
+    {
+      "line_number": 53,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 168,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 196,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 234,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 297,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 325,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 362,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 414,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerNewEventTest.php"
+    },
+    {
+      "line_number": 57,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 85,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 115,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 180,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 238,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 335,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 414,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 441,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 471,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 541,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 609,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 677,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 705,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 789,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 857,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 943,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 1033,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/BrokerUpdateEventTest.php"
+    },
+    {
+      "line_number": 871,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/ITip/EvolutionTest.php"
+    },
+    {
+      "line_number": 166,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Parser/JsonTest.php"
+    },
+    {
+      "line_number": 317,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Parser/JsonTest.php"
+    },
+    {
+      "line_number": 114,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    {
+      "line_number": 128,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    {
+      "line_number": 148,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    {
+      "line_number": 246,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    {
+      "line_number": 262,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/ICalendarTest.php"
+    },
+    {
+      "line_number": 57,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/Splitter/VCardTest.php"
+    },
+    {
+      "line_number": 568,
+      "reason": "interpolation",
+      "source_file": "tests/VObject/VCardConverterTest.php"
+    }
+  ]
+}

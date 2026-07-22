@@ -1,0 +1,6 @@
+BEGIN:VCARD
+VERSION:4.0
+PRODID:-//Sabre//Sabre VObject 3.1.0//EN
+UID:foo
+FN:Cowboy Henk
+END:VCARD

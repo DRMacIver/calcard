@@ -1,0 +1,7 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Gump;Forrest;;Mr.
+FN:Forrest Gump
+BDAY:foo
+X-SABRE-BDAY;X-SABRE-VCARD-UID=foo;X-SABRE-VCARD-FN=Forrest Gump:BDAY
+END:VCARD

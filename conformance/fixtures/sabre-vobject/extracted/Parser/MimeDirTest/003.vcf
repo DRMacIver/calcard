@@ -1,0 +1,4 @@
+BEGIN:VCARD
+VERSION:3.0
+FN;CHARSET=unknown:foo-bar - \xFC
+END:VCARD

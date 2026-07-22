@@ -1,0 +1,5 @@
+BEGIN:VCALENDAR
+BEGIN:VEVENT
+ATTACH;FMTTYPE=application/postscript:ftp://example.com/pub/reports/r-960812.ps
+END:VEVENT
+END:VCALENDAR

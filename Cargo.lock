@@ -683,6 +683,7 @@ name = "vobject-core"
 version = "0.1.0"
 dependencies = [
  "hegeltest",
+ "serde_json",
 ]
 
 [[package]]

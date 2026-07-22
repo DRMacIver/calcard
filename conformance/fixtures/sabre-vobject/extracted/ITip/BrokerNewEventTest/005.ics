@@ -1,0 +1,13 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:foobar
+ORGANIZER;CN=Strunk:mailto:strunk@example.org
+ATTENDEE;CN=White:mailto:white@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:foobar
+ORGANIZER:mailto:foo@example.org
+ATTENDEE;CN=White:mailto:white@example.org
+END:VEVENT
+END:VCALENDAR

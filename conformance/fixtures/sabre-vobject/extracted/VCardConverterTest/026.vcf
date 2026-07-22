@@ -1,0 +1,7 @@
+BEGIN:VCARD
+VERSION:3.0
+UID:foo
+N:Doe;John;;;
+FN:John Doe
+item1.X-ABDATE;type=pref:2008-12-11
+END:VCARD

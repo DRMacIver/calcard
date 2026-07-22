@@ -1,0 +1,9 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:foobar
+SEQUENCE:2
+ATTENDEE:mailto:foo@example.org
+ORGANIZER:mailto:bar@example.org
+END:VEVENT
+END:VCALENDAR

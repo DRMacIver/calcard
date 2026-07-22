@@ -1,0 +1,6 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DESCRIPTION:This is a description\nwith a linebreak and a \; \, and :
+END:VEVENT
+END:VCALENDAR

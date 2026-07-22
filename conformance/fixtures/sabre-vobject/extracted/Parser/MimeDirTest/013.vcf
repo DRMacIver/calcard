@@ -1,0 +1,5 @@
+BEGIN:VCARD
+VERSION:4.0
+FN;P1=value1; P2=value2:value
+UID:1234
+END:VCARD

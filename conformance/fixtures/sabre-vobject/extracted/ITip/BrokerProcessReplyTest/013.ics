@@ -1,0 +1,10 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SEQUENCE:2
+UID:foobar
+ATTENDEE:mailto:foo@example.org
+ORGANIZER:mailto:bar@example.org
+ATTENDEE;PARTSTAT=ACCEPTED:mailto:crasher@example.org
+END:VEVENT
+END:VCALENDAR

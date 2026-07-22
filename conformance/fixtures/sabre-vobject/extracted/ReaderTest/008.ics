@@ -1,0 +1,3 @@
+BEGIN:VCALENDAR
+SUMMARY:Line1\nLine2\NLine3\\Not the 4th line!
+END:VCALENDAR
