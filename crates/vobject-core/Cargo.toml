@@ -1,0 +1,11 @@
+[package]
+name = "vobject-core"
+description = "Robust parser and serializer for the vobject formats (iCalendar RFC 5545, vCard RFC 6350/2426/2.1)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[dev-dependencies]

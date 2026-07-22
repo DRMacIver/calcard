@@ -1,0 +1,14 @@
+[package]
+name = "vobject-py"
+description = "Python bindings for vobject-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+vobject-core = { path = "../vobject-core" }
