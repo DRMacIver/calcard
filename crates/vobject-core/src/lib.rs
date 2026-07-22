@@ -42,6 +42,7 @@ pub mod parse;
 pub mod rrule;
 pub mod value;
 pub mod write;
+pub mod xcal;
 
 pub use error::{ErrorKind, Location, ParseError, Repair, RepairKind};
 pub use model::{Child, Component, Param, Property};

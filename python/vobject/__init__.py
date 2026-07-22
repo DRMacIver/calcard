@@ -70,12 +70,14 @@ __all__ = [
     "TypedComponent",
     "escape_text",
     "expand_rrule",
+    "from_xcal",
     "native_value",
     "parse",
     "parse_one",
     "serialize",
     "split_unescaped",
     "to_jcal",
+    "to_xcal",
     "unescape_text",
     "wrap",
 ]
@@ -302,6 +304,27 @@ def to_jcal(component: Component, *, dialect: str | None = None):
     import json
 
     return json.loads(_to_jcal_json(component, dialect))
+
+
+def to_xcal(value) -> str:
+    """The xCal (RFC 6321) / xCard (RFC 6351) XML representation of a
+    Document, Component, or list of Components."""
+    from vobject._core import to_xcal_xml
+
+    if isinstance(value, Document):
+        components = value.components
+    elif isinstance(value, Component):
+        components = [value]
+    else:
+        components = list(value)
+    return to_xcal_xml(components)
+
+
+def from_xcal(xml: str) -> Document:
+    """Parse an xCal/xCard XML document."""
+    from vobject._core import from_xcal_xml
+
+    return Document(components=from_xcal_xml(xml), repairs=[])
 
 
 def serialize(

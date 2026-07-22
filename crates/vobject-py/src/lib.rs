@@ -561,6 +561,24 @@ fn to_jcal_json(py: Python<'_>, component: &Component, dialect: Option<&str>) ->
     Ok(value.to_string())
 }
 
+/// Serialize components to an xCal/xCard XML document.
+#[pyfunction]
+fn to_xcal_xml(py: Python<'_>, components: Vec<Py<Component>>) -> PyResult<String> {
+    let core: Vec<vobject_core::Component> = components
+        .iter()
+        .map(|c| py_to_component(py, &c.borrow(py)))
+        .collect::<PyResult<Vec<_>>>()?;
+    vobject_core::xcal::to_xml(&core).map_err(|e| ParseError::new_err(e.to_string()))
+}
+
+/// Parse an xCal/xCard XML document into components.
+#[pyfunction]
+fn from_xcal_xml(py: Python<'_>, xml: &str) -> PyResult<Vec<Py<Component>>> {
+    let comps =
+        vobject_core::xcal::from_xml(xml).map_err(|e| ParseError::new_err(e.to_string()))?;
+    comps.iter().map(|c| component_to_py(py, c)).collect()
+}
+
 #[pymodule]
 fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Component>()?;
@@ -576,6 +594,8 @@ fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(typed_value, m)?)?;
     m.add_function(wrap_pyfunction!(expand_rrule, m)?)?;
     m.add_function(wrap_pyfunction!(to_jcal_json, m)?)?;
+    m.add_function(wrap_pyfunction!(to_xcal_xml, m)?)?;
+    m.add_function(wrap_pyfunction!(from_xcal_xml, m)?)?;
     m.add("ParseError", py.get_type::<ParseError>())?;
     Ok(())
 }
