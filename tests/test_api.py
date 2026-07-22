@@ -48,6 +48,15 @@ def test_parse_one():
         vobject.parse_one("")
 
 
+def test_parse_one_error_carries_line_attribute():
+    # Regression: the synthetic "expected exactly one component" error must
+    # expose .line like core-raised ParseErrors do (None: no single line).
+    for source in ("", SIMPLE + SIMPLE):
+        with pytest.raises(vobject.ParseError) as excinfo:
+            vobject.parse_one(source)
+        assert excinfo.value.line is None
+
+
 def test_strict_mode_raises_with_line_number():
     with pytest.raises(vobject.ParseError) as excinfo:
         vobject.parse("BEGIN:VCALENDAR\nEND:VCALENDAR\n", strict=True)

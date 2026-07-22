@@ -61,6 +61,64 @@ def test_binary():
     assert native_value(prop_of("X-B;VALUE=BINARY:Zm9vYmFy")) == b"foobar"
 
 
+def test_time_values():
+    assert native_value(prop_of("X-T;VALUE=TIME:123045")) == [
+        dt.time(12, 30, 45)
+    ]
+    assert native_value(prop_of("X-T;VALUE=TIME:123045Z")) == [
+        dt.time(12, 30, 45, tzinfo=dt.timezone.utc)
+    ]
+
+
+def test_period_start_end():
+    got = native_value(prop_of("FREEBUSY:19970308T160000Z/19970308T190000Z"))
+    assert got == [
+        (
+            dt.datetime(1997, 3, 8, 16, 0, tzinfo=dt.timezone.utc),
+            dt.datetime(1997, 3, 8, 19, 0, tzinfo=dt.timezone.utc),
+        )
+    ]
+
+
+def test_period_start_duration():
+    got = native_value(prop_of("FREEBUSY:19970308T160000Z/PT3H"))
+    assert got == [
+        (
+            dt.datetime(1997, 3, 8, 16, 0, tzinfo=dt.timezone.utc),
+            dt.timedelta(hours=3),
+        )
+    ]
+
+
+def test_period_with_tzid():
+    got = native_value(
+        prop_of("FREEBUSY;TZID=Europe/London:19970308T160000/PT1H")
+    )
+    assert got == [
+        (
+            dt.datetime(1997, 3, 8, 16, 0, tzinfo=ZoneInfo("Europe/London")),
+            dt.timedelta(hours=1),
+        )
+    ]
+
+
+def test_boolean_values():
+    assert native_value(prop_of("X-B;VALUE=BOOLEAN:TRUE")) is True
+    assert native_value(prop_of("X-B;VALUE=BOOLEAN:FALSE")) is False
+
+
+def test_unresolvable_tzid_yields_naive_datetime():
+    got = native_value(prop_of("DTSTART;TZID=Not/AZone:20260722T160000"))
+    assert got == [dt.datetime(2026, 7, 22, 16, 0)]
+    assert got[0].tzinfo is None
+
+
+def test_date_shaped_value_in_datetime_position():
+    # A DATE-TIME-typed property whose value is date-shaped comes back as
+    # a date (the tuple has three fields; _to_datetime keeps it a date).
+    assert native_value(prop_of("DTSTART:20260722")) == [dt.date(2026, 7, 22)]
+
+
 def test_expand_rrule():
     got = vobject.expand_rrule(
         "FREQ=WEEKLY;COUNT=3", dt.datetime(2026, 7, 22, 9, 0, 0)

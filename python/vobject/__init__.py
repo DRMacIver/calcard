@@ -218,9 +218,13 @@ def parse_one(
     return it."""
     doc = parse(source, strict=strict, max_depth=max_depth)
     if len(doc.components) != 1:
-        raise ParseError(
+        err = ParseError(
             f"expected exactly one top-level component, found {len(doc.components)}"
         )
+        # Core-raised ParseErrors carry a .line attribute; keep the
+        # synthetic error uniform (no single line is at fault).
+        err.line = None
+        raise err
     return doc.components[0]
 
 
