@@ -3,8 +3,8 @@
 import datetime
 from html.parser import HTMLParser
 
-import vobject.base
-import vobject.hcalendar  # noqa: F401  (registers the HCALENDAR behavior)
+import calcard.compat.pyvobject.base
+import calcard.compat.pyvobject.hcalendar  # noqa: F401  (registers the HCALENDAR behavior)
 
 
 class TagCollector(HTMLParser):
@@ -17,7 +17,7 @@ class TagCollector(HTMLParser):
 
 
 def _sample_hcal():
-    cal = vobject.base.newFromBehavior("hcalendar")
+    cal = calcard.compat.pyvobject.base.newFromBehavior("hcalendar")
     cal.add("vevent")
     cal.vevent.add("summary").value = "Web 2.0 Conference"
     cal.vevent.add("url").value = "http://www.web2con.com/"

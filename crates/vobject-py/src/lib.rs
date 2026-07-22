@@ -1,8 +1,8 @@
 //! PyO3 bindings for vobject-core.
 //!
-//! This module (`vobject._core`) exposes the lossless document model and the
+//! This module (`calcard._core`) exposes the lossless document model and the
 //! strict/lenient parser and serializer. The user-facing Python API lives in
-//! the pure-Python `vobject` package on top of these primitives.
+//! the pure-Python `calcard` package on top of these primitives.
 //!
 //! The model classes hold shared references (`Py<T>`) to their children, so
 //! Python code can mutate a tree in place naturally.
@@ -13,14 +13,14 @@ use pyo3::prelude::*;
 use vobject_core as core;
 
 create_exception!(
-    vobject._core,
+    calcard._core,
     ParseError,
     PyValueError,
     "The input could not be parsed as a vobject document."
 );
 
 /// A property parameter: a name and zero or more decoded values.
-#[pyclass(module = "vobject._core")]
+#[pyclass(module = "calcard._core")]
 struct Param {
     #[pyo3(get, set)]
     name: String,
@@ -46,7 +46,7 @@ impl Param {
 }
 
 /// A single content line: group, name, parameters, and the raw value.
-#[pyclass(module = "vobject._core")]
+#[pyclass(module = "calcard._core")]
 struct Property {
     #[pyo3(get, set)]
     group: Option<String>,
@@ -102,7 +102,7 @@ impl Property {
 
 /// A component: a name plus an ordered list of children, each of which is
 /// either a Property or a Component.
-#[pyclass(module = "vobject._core")]
+#[pyclass(module = "calcard._core")]
 struct Component {
     #[pyo3(get, set)]
     name: String,
@@ -230,7 +230,7 @@ impl Component {
 }
 
 /// One recovery made by the lenient parser.
-#[pyclass(module = "vobject._core", frozen)]
+#[pyclass(module = "calcard._core", frozen)]
 struct Repair {
     #[pyo3(get)]
     line: usize,

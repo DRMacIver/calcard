@@ -24,8 +24,7 @@ SOFTWARE.
 
 This distribution also contains code adapted from other projects:
 
-- python/vobject/base.py, icalendar.py, vcard.py, behavior.py,
-  hcalendar.py, change_tz.py, ics_diff.py are adapted from py-vobject
+- python/calcard/compat/pyvobject/ is adapted from py-vobject
   (Apache License 2.0); see LICENSES/py-vobject-LICENSE.
-- python/icalendar/ is adapted from collective/icalendar (BSD 2-Clause);
-  see LICENSES/icalendar-LICENSE.
+- python/calcard/compat/icalendar/ is adapted from collective/icalendar
+  (BSD 2-Clause); see LICENSES/icalendar-LICENSE.

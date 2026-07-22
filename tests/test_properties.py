@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from hypothesis import assume, given, settings, strategies as st
 
-import vobject
+import calcard
 
 # ---------------------------------------------------------------------------
 # Input strategies
@@ -73,17 +73,17 @@ def _qp_hazard(components):
 @given(any_input)
 @settings(max_examples=300)
 def test_lenient_parse_is_total(text):
-    vobject.parse(text)  # must not raise
+    calcard.parse(text)  # must not raise
 
 
 @given(any_input)
 @settings(max_examples=300)
 def test_zero_repairs_iff_strict(text):
-    doc = vobject.parse(text)
+    doc = calcard.parse(text)
     strict_doc = None
     try:
-        strict_doc = vobject.parse(text, strict=True)
-    except vobject.ParseError:
+        strict_doc = calcard.parse(text, strict=True)
+    except calcard.ParseError:
         pass
 
     if strict_doc is not None:
@@ -98,11 +98,11 @@ def test_zero_repairs_iff_strict(text):
 @given(any_input)
 @settings(max_examples=300)
 def test_serialization_is_faithful(text):
-    first = vobject.parse(text)
+    first = calcard.parse(text)
     if _qp_hazard(first.components):
         return
     wire = first.serialize()
-    second = vobject.parse(wire)
+    second = calcard.parse(wire)
     assert len(second.components) == len(first.components)
     for a, b in zip(second.components, first.components):
         assert a == b
@@ -111,33 +111,33 @@ def test_serialization_is_faithful(text):
 @given(any_input)
 @settings(max_examples=200)
 def test_serialized_lines_respect_fold_width(text):
-    wire = vobject.parse(text).serialize()
+    wire = calcard.parse(text).serialize()
     for line in wire.split("\r\n"):
         assert len(line.encode()) <= 75
 
 
 @given(st.text().map(lambda s: s.replace("\r", "")))
 def test_text_escape_round_trip(s):
-    escaped = vobject.escape_text(s)
+    escaped = calcard.escape_text(s)
     assert "\n" not in escaped and "\r" not in escaped
-    assert vobject.unescape_text(escaped) == s
+    assert calcard.unescape_text(escaped) == s
 
 
 @given(st.text())
 def test_unescape_is_total(s):
-    vobject.unescape_text(s)  # must not raise
+    calcard.unescape_text(s)  # must not raise
 
 
 @given(st.lists(st.text(max_size=30).map(lambda s: s.replace("\r", "")), min_size=1))
 def test_split_unescaped_inverts_escaped_join(pieces):
-    escaped = [vobject.escape_text(p) for p in pieces]
+    escaped = [calcard.escape_text(p) for p in pieces]
     joined = ",".join(escaped)
-    assert vobject.split_unescaped(joined, ",") == escaped
+    assert calcard.split_unescaped(joined, ",") == escaped
 
 
 @given(st.binary(max_size=300))
 def test_bytes_input_is_total(data):
-    vobject.parse(data)  # BOM/UTF-8/Latin-1 handling must never raise
+    calcard.parse(data)  # BOM/UTF-8/Latin-1 handling must never raise
 
 
 # ---------------------------------------------------------------------------
@@ -191,10 +191,10 @@ def _wire_representable_datetimes(draw):
 @given(_wire_representable_datetimes())
 @settings(max_examples=200)
 def test_typed_datetime_setter_preserves_the_moment(value):
-    doc = vobject.parse(_EVENT_SHELL)
+    doc = calcard.parse(_EVENT_SHELL)
     event = doc.calendars[0].events[0]
     event.start = value
-    reparsed = vobject.parse(doc.serialize(), strict=True)
+    reparsed = calcard.parse(doc.serialize(), strict=True)
     for got in (event.start, reparsed.calendars[0].events[0].start):
         if value.tzinfo is None:
             # Naive stays floating with the same wall time.
@@ -229,13 +229,13 @@ _extra_params = st.lists(
 @given(_extra_params, _wire_representable_datetimes())
 @settings(max_examples=200)
 def test_datetime_setter_never_loses_unmanaged_params(extra, value):
-    doc = vobject.parse(_EVENT_SHELL)
+    doc = calcard.parse(_EVENT_SHELL)
     event = doc.calendars[0].events[0]
     event.component.children = event.component.children + [
-        vobject.Property(
+        calcard.Property(
             "DTEND",
             "20260722T160000Z",
-            params=[vobject.Param(name, values) for name, values in extra],
+            params=[calcard.Param(name, values) for name, values in extra],
         )
     ]
     event.end = value

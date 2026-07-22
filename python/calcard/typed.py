@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from vobject._core import Component, Param, Property
-from vobject.values import native_value
+from calcard._core import Component, Param, Property
+from calcard.values import native_value
 
 __all__ = [
     "Alarm",
@@ -90,7 +90,7 @@ class TypedComponent:
 
     def set_text(self, name: str, value: str) -> None:
         """Set (replacing the first, or appending) a TEXT property."""
-        from vobject._core import escape_text
+        from calcard._core import escape_text
 
         prop = self.component.prop(name)
         if prop is None:
@@ -190,7 +190,7 @@ class _StartEndMixin(TypedComponent):
 
     @rrule.setter
     def rrule(self, value: str) -> None:
-        from vobject._core import typed_value
+        from calcard._core import typed_value
 
         # Validate before storing: an invalid rule raises ParseError and
         # leaves the component untouched.
@@ -207,7 +207,7 @@ class _StartEndMixin(TypedComponent):
         """Expand this component's RRULE from its start (start alone if
         there is no rule), with RFC 5545 local-time DST semantics for
         zone-aware starts. EXDATE/RDATE handling is the caller's concern."""
-        from vobject import expand_rrule
+        from calcard import expand_rrule
 
         start = self.start
         if start is None:

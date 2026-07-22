@@ -2,8 +2,8 @@ import subprocess
 
 
 class Cli:
-    ics_diff = "ics_diff"
-    change_tz = "change_tz"
+    ics_diff = "calcard-ics-diff"  # calcard: scripts are prefixed to avoid colliding with py-vobject's
+    change_tz = "calcard-change-tz"
 
 
 def run_cli_tool(toolname: str, args: list[str]):

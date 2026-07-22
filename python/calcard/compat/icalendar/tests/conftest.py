@@ -1,5 +1,9 @@
 """Test configuration"""
 
+# calcard vendored copy: importing the compat package installs the
+# `icalendar` import alias this suite (and the package internals) rely on.
+import calcard.compat.icalendar  # noqa: F401
+
 import functools
 import itertools
 import sys

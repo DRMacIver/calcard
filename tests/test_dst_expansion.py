@@ -1,6 +1,6 @@
 """Timezone-aware recurrence expansion across DST transitions.
 
-Expected values are ported from sabre/vobject's RRuleIteratorTest DST data
+Expected values are ported from sabre/calcard's RRuleIteratorTest DST data
 providers (Europe/Zurich; spring-forward 2023-03-26 02:00 → 03:00), the
 only reference implementation with explicit DST-crossing expectations.
 Semantics (RFC 5545 §3.3.5): the recurrence is generated on the local wall
@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-import vobject
+import calcard
 
 ZURICH = ZoneInfo("Europe/Zurich")
 
@@ -24,7 +24,7 @@ def local(spec: str) -> dt.datetime:
 
 
 def expand_local(rule: str, start: str) -> list[str]:
-    got = vobject.expand_rrule(rule, local(start))
+    got = calcard.expand_rrule(rule, local(start))
     return [d.strftime("%Y-%m-%d %H:%M:%S") for d in got]
 
 
@@ -140,7 +140,7 @@ def test_daily_across_spring_forward(start, expected):
 
 # sabre testWeeklyByDaySpecificHourOnDstTransition
 def test_weekly_across_spring_forward():
-    got = vobject.expand_rrule(
+    got = calcard.expand_rrule(
         "FREQ=WEEKLY;INTERVAL=2;BYDAY=SA,SU",
         local("2023-03-11 02:30:00"),
         limit=6,
@@ -158,7 +158,7 @@ def test_weekly_across_spring_forward():
 def test_instances_are_real_instants():
     """The gap instance is not just formatted as 03:00 — it is the correct
     absolute time (01:00Z, the pre-gap offset applied to the wall time)."""
-    got = vobject.expand_rrule(
+    got = calcard.expand_rrule(
         "FREQ=DAILY;COUNT=3", local("2023-03-25 02:00:00")
     )
     instants = [d.astimezone(dt.timezone.utc) for d in got]
@@ -174,7 +174,7 @@ def test_instances_are_real_instants():
 
 def test_fall_back_ambiguous_takes_first_occurrence():
     # Zurich falls back 2023-10-29 03:00 -> 02:00; 02:30 happens twice.
-    got = vobject.expand_rrule(
+    got = calcard.expand_rrule(
         "FREQ=DAILY;COUNT=2", local("2023-10-28 02:30:00")
     )
     instants = [d.astimezone(dt.timezone.utc) for d in got]
@@ -188,7 +188,7 @@ def test_fall_back_ambiguous_takes_first_occurrence():
 def test_utc_until_bounds_zoned_expansion():
     # UNTIL is an instant: 2023-03-26 01:30:00Z == 03:30 Zurich wall time
     # after the transition.
-    got = vobject.expand_rrule(
+    got = calcard.expand_rrule(
         "FREQ=HOURLY;INTERVAL=2;UNTIL=20230326T013000Z",
         local("2023-03-26 00:00:00"),
     )
@@ -205,7 +205,7 @@ def test_event_occurrences_are_dst_aware():
         "RRULE:FREQ=DAILY;COUNT=3\r\n"
         "END:VEVENT\r\nEND:VCALENDAR\r\n"
     )
-    event = vobject.parse(text).calendars[0].events[0]
+    event = calcard.parse(text).calendars[0].events[0]
     got = [o.strftime("%Y-%m-%d %H:%M:%S") for o in event.occurrences()]
     assert got == [
         "2023-03-25 02:00:00",

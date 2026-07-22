@@ -1,0 +1,28 @@
+This package is adapted from collective/icalendar
+(https://github.com/collective/icalendar), commit f92bd57 (version 7.2.2),
+BSD-2-Clause (see LICENSES/icalendar-LICENSE in the repository root).
+
+It serves as the calcard distribution's icalendar compatibility layer,
+living at calcard.compat.icalendar; parser internals are progressively
+delegated to the Rust core (calcard._core). Importing the package installs
+an import alias so the upstream absolute imports (`from icalendar.x import
+y`) used throughout the code and its test suite resolve here (see
+calcard.compat). The upstream test suite ships in icalendar/tests and runs
+against this copy.
+
+Local modifications to the vendored copy:
+- __init__.py: installs the calcard.compat import aliases before the
+  upstream imports run, and mirrors loaded submodules into sys.modules
+  under the upstream name afterwards.
+- _version.py: static version stamp (upstream generates it via hatch-vcs).
+- tests/conftest.py: imports calcard.compat.icalendar first so the alias
+  is installed for the suite.
+- tests/test_with_doctest.py: documentation doctests point at the vendored
+  upstream_docs/ tree instead of the repository root, and the module-name
+  self-check maps the canonical calcard module name back to the upstream
+  alias.
+- tests/test_funding_json.py: replaced with a module-level skip; it checks
+  the upstream repository's funding manifest, not library behavior.
+- The repository provides a src/icalendar/tests symlink so that upstream
+  doctests which open fixtures via the upstream repo-relative path
+  (src/icalendar/tests/...) keep working from this repository's root.

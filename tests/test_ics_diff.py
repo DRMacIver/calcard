@@ -2,13 +2,13 @@
 
 import datetime
 
-import vobject
-from vobject.ics_diff import diff, prettyDiff
+import calcard.compat.pyvobject
+from calcard.compat.pyvobject.ics_diff import diff, prettyDiff
 
 
 def build_calendar(events):
     """Build a VCALENDAR from (uid, dtstart, summary) tuples."""
-    cal = vobject.iCalendar()
+    cal = calcard.compat.pyvobject.iCalendar()
     for uid, dtstart, summary in events:
         event = cal.add("vevent")
         event.add("uid").value = uid

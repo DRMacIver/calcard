@@ -34,4 +34,4 @@ jobs:
       - name: Upstream py-vobject suite
         run: uv run pytest -q tests_upstream/pyvobject
       - name: Upstream icalendar suite
-        run: uv run pytest -q python/icalendar/tests
+        run: uv run pytest -q python/calcard/compat/icalendar/tests

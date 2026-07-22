@@ -1,6 +1,6 @@
-"""vobject: robust iCalendar and vCard parsing and serialization.
+"""calcard: robust iCalendar and vCard parsing and serialization.
 
-Backed by a Rust core (``vobject._core``). The document model is lossless:
+Backed by a Rust core (``calcard._core``). The document model is lossless:
 parsing and re-serializing preserves property order, unknown properties and
 parameters, vCard groups, and interleaving of properties with subcomponents.
 
@@ -11,20 +11,23 @@ grammars instead.
 
 Basic usage::
 
-    import vobject
+    import calcard
 
-    doc = vobject.parse(text)
+    doc = calcard.parse(text)
     for cal in doc.components:
         for event in cal.comps("VEVENT"):
             print(event.prop("SUMMARY").value)
     out = doc.serialize()
+
+Compatibility layers for py-vobject and icalendar live in
+:mod:`calcard.compat` and are only activated when imported.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from vobject._core import (
+from calcard._core import (
     Component,
     Param,
     ParseError,
@@ -34,13 +37,13 @@ from vobject._core import (
     split_unescaped,
     unescape_text,
 )
-from vobject._core import parse as _core_parse
-from vobject._core import parse_bytes as _core_parse_bytes
-from vobject._core import serialize as _core_serialize
-from vobject._core import expand_rrule as _expand_rrule
-from vobject._core import to_jcal_json as _to_jcal_json
-from vobject.values import native_value
-from vobject.typed import (
+from calcard._core import parse as _core_parse
+from calcard._core import parse_bytes as _core_parse_bytes
+from calcard._core import serialize as _core_serialize
+from calcard._core import expand_rrule as _expand_rrule
+from calcard._core import to_jcal_json as _to_jcal_json
+from calcard.values import native_value
+from calcard.typed import (
     Alarm,
     Calendar,
     Card,
@@ -88,68 +91,6 @@ __version__ = "0.1.0"
 
 DEFAULT_MAX_DEPTH = 512
 
-# --------------------------------------------------------------------------
-# py-vobject compatibility surface.
-#
-# The modules vobject.base, vobject.behavior, vobject.icalendar,
-# vobject.vcard, vobject.hcalendar, vobject.change_tz and vobject.ics_diff
-# provide a py-vobject 1.0-compatible API (their test suite runs against
-# this package; see tests_upstream/). They are loaded lazily so that the
-# clean API above has no hard dependency on python-dateutil/pytz.
-
-_PYVOBJECT_NAMES = ("readComponents", "readOne", "newFromBehavior", "VERSION")
-
-
-def _load_compat():
-    """Import the compat modules together: importing vobject.icalendar and
-    vobject.vcard registers their behaviors, which base.readComponents and
-    newFromBehavior rely on."""
-    import importlib
-
-    base = importlib.import_module("vobject.base")
-    importlib.import_module("vobject.icalendar")
-    importlib.import_module("vobject.vcard")
-    return base
-
-
-_COMPAT_MODULES = (
-    "base",
-    "behavior",
-    "icalendar",
-    "vcard",
-    "hcalendar",
-    "change_tz",
-    "ics_diff",
-)
-
-
-def __getattr__(name):
-    # `from . import x` inside the compat modules consults this hook before
-    # falling back to a submodule import, so it must be reentrancy-safe:
-    # return partially-initialized modules from sys.modules as-is.
-    if name in _COMPAT_MODULES:
-        import importlib
-        import sys
-
-        mod = sys.modules.get(f"vobject.{name}")
-        if mod is not None:
-            return mod
-        return importlib.import_module(f"vobject.{name}")
-    if name in _PYVOBJECT_NAMES:
-        return getattr(_load_compat(), name)
-    raise AttributeError(f"module 'vobject' has no attribute {name!r}")
-
-
-def iCalendar():
-    """py-vobject compatibility: a new VCALENDAR 2.0 component."""
-    return _load_compat().newFromBehavior("vcalendar", "2.0")
-
-
-def vCard():
-    """py-vobject compatibility: a new VCARD 3.0 component."""
-    return _load_compat().newFromBehavior("vcard", "3.0")
-
-
 @dataclass
 class Document:
     """A parsed vobject stream: top-level components plus any repairs the
@@ -173,14 +114,14 @@ class Document:
     @property
     def calendars(self) -> list:
         """Typed views of the top-level VCALENDAR components."""
-        from vobject.typed import Calendar
+        from calcard.typed import Calendar
 
         return [Calendar(c) for c in self.components if c.name.upper() == "VCALENDAR"]
 
     @property
     def cards(self) -> list:
         """Typed views of the top-level VCARD components."""
-        from vobject.typed import Card
+        from calcard.typed import Card
 
         return [Card(c) for c in self.components if c.name.upper() == "VCARD"]
 
@@ -328,7 +269,7 @@ def to_jcal(component: Component, *, dialect: str | None = None):
 def to_xcal(value) -> str:
     """The xCal (RFC 6321) / xCard (RFC 6351) XML representation of a
     Document, Component, or list of Components."""
-    from vobject._core import to_xcal_xml
+    from calcard._core import to_xcal_xml
 
     if isinstance(value, Document):
         components = value.components
@@ -345,7 +286,7 @@ def from_jcal(value) -> Document:
     document or a list of documents)."""
     import json
 
-    from vobject._core import from_jcal_json
+    from calcard._core import from_jcal_json
 
     if not isinstance(value, str):
         value = json.dumps(value)
@@ -354,7 +295,7 @@ def from_jcal(value) -> Document:
 
 def from_xcal(xml: str) -> Document:
     """Parse an xCal/xCard XML document."""
-    from vobject._core import from_xcal_xml
+    from calcard._core import from_xcal_xml
 
     return Document(components=from_xcal_xml(xml), repairs=[])
 

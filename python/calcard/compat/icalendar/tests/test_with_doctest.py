@@ -37,7 +37,10 @@ MODULE_NAMES = [
 
 
 def test_this_module_is_among_them() -> None:
-    assert __name__ in MODULE_NAMES
+    # calcard vendored copy: pytest imports this module under its canonical
+    # calcard.compat.icalendar name; MODULE_NAMES uses the upstream alias.
+    alias_name = "icalendar" + __name__.split("icalendar", 1)[-1]
+    assert alias_name in MODULE_NAMES
 
 
 @pytest.mark.parametrize("module_name", MODULE_NAMES)

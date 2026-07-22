@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-import vobject
+import calcard
 
 FIXTURES = Path(__file__).parent.parent / "conformance" / "fixtures"
 
@@ -29,7 +29,7 @@ def corpus():
 
 @pytest.mark.parametrize("path", corpus(), ids=lambda p: str(p.relative_to(FIXTURES)))
 def test_corpus_file(path):
-    doc = vobject.parse(path.read_bytes())
+    doc = calcard.parse(path.read_bytes())
     wire = doc.serialize()
-    reparsed = vobject.parse(wire)
+    reparsed = calcard.parse(wire)
     assert len(reparsed.components) == len(doc.components)

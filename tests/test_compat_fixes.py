@@ -2,22 +2,22 @@
 
 Covers:
 
-* Debug ``print()`` calls in ``vobject.icalendar`` that fired during normal
+* Debug ``print()`` calls in ``calcard.compat.pyvobject.icalendar`` that fired during normal
   serialization and ``getrruleset()`` use.
-* ``vobject.base.foldOneLine`` attempting a bytes write into a text buffer on
+* ``calcard.compat.pyvobject.base.foldOneLine`` attempting a bytes write into a text buffer on
   every call (masked by a broad ``except Exception``).
 """
 
 import datetime
 import io
 
-import vobject
-import vobject.base
-from vobject.base import foldOneLine
+import calcard.compat.pyvobject
+import calcard.compat.pyvobject.base
+from calcard.compat.pyvobject.base import foldOneLine
 
 
 def _calendar_with_rrule():
-    cal = vobject.iCalendar()
+    cal = calcard.compat.pyvobject.iCalendar()
     event = cal.add("vevent")
     event.add("uid").value = "recurrence-test@example.com"
     event.add("summary").value = "Weekly sync"

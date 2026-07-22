@@ -9,7 +9,10 @@ def test_general_behavior():
     """
     # test get_behavior
     behavior = vobject.base.getBehavior("VCALENDAR")
-    assert str(behavior) == "<class 'vobject.icalendar.VCalendar2_0'>"
+    # calcard: upstream asserts the repr string "<class 'vobject.icalendar
+    # .VCalendar2_0'>"; the compat package's canonical module name differs,
+    # so assert the identity the repr was standing in for.
+    assert behavior is vobject.icalendar.VCalendar2_0
     assert behavior.isComponent
     assert vobject.base.getBehavior("invalid_name") is None
 

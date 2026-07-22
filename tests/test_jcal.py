@@ -5,7 +5,7 @@ import json
 import pytest
 from hypothesis import given, settings, strategies as st
 
-import vobject
+import calcard
 
 from test_properties import any_input
 
@@ -22,80 +22,80 @@ CARD = (
 
 
 def test_jcal_round_trip():
-    doc = vobject.parse(CAL)
-    j = vobject.to_jcal(doc.components[0])
+    doc = calcard.parse(CAL)
+    j = calcard.to_jcal(doc.components[0])
     assert j[0] == "vcalendar"
-    back = vobject.from_jcal(j)
+    back = calcard.from_jcal(j)
     assert back.components[0] == doc.components[0]
     assert back.serialize() == CAL
 
 
 def test_from_jcal_accepts_json_text():
-    doc = vobject.parse(CAL)
-    j = vobject.to_jcal(doc.components[0])
-    back = vobject.from_jcal(json.dumps(j))
+    doc = calcard.parse(CAL)
+    j = calcard.to_jcal(doc.components[0])
+    back = calcard.from_jcal(json.dumps(j))
     assert back.serialize() == CAL
 
 
 def test_jcard_round_trip():
-    doc = vobject.parse(CARD)
-    j = vobject.to_jcal(doc.components[0])
+    doc = calcard.parse(CARD)
+    j = calcard.to_jcal(doc.components[0])
     assert j[0] == "vcard"
-    back = vobject.from_jcal(j)
+    back = calcard.from_jcal(j)
     assert back.components[0] == doc.components[0]
     assert back.serialize() == CARD
 
 
 def test_from_jcal_multiple_documents():
-    docs = vobject.parse(CAL + CARD)
-    js = [vobject.to_jcal(c) for c in docs.components]
-    back = vobject.from_jcal(js)
+    docs = calcard.parse(CAL + CARD)
+    js = [calcard.to_jcal(c) for c in docs.components]
+    back = calcard.from_jcal(js)
     assert len(back.components) == 2
     assert back.serialize() == CAL + CARD
 
 
 def test_from_jcal_value_param():
-    back = vobject.from_jcal(["vcalendar", [["dtstart", {}, "date", "2026-07-22"]], []])
+    back = calcard.from_jcal(["vcalendar", [["dtstart", {}, "date", "2026-07-22"]], []])
     prop = back.components[0].prop("DTSTART")
     assert prop.value == "20260722"
 
 
 def test_from_jcal_rejects_garbage():
     for bad in ["not json", "{}", "42", "[]", '["vcalendar"]', '[7, [], []]']:
-        with pytest.raises(vobject.ParseError):
-            vobject.from_jcal(bad)
+        with pytest.raises(calcard.ParseError):
+            calcard.from_jcal(bad)
 
 
 def test_from_jcal_rejects_bad_structures():
-    with pytest.raises(vobject.ParseError):
-        vobject.from_jcal({"not": "jcal"})
-    with pytest.raises(vobject.ParseError):
-        vobject.from_jcal(["vcalendar", [["summary", {}, "text"]], []])
+    with pytest.raises(calcard.ParseError):
+        calcard.from_jcal({"not": "jcal"})
+    with pytest.raises(calcard.ParseError):
+        calcard.from_jcal(["vcalendar", [["summary", {}, "text"]], []])
 
 
 def test_from_jcal_depth_bomb_errors_cleanly():
     bomb = "[" * 100_000 + "]" * 100_000
-    with pytest.raises(vobject.ParseError):
-        vobject.from_jcal(bomb)
+    with pytest.raises(calcard.ParseError):
+        calcard.from_jcal(bomb)
 
 
 @given(any_input)
 @settings(max_examples=300)
 def test_jcal_fixed_point_on_parsed_documents(text):
-    doc = vobject.parse(text)
+    doc = calcard.parse(text)
     if not doc.components:
         return
-    js = [vobject.to_jcal(c) for c in doc.components]
-    back = vobject.from_jcal(js)
+    js = [calcard.to_jcal(c) for c in doc.components]
+    back = calcard.from_jcal(js)
     assert len(back.components) == len(doc.components)
-    assert [vobject.to_jcal(c) for c in back.components] == js
+    assert [calcard.to_jcal(c) for c in back.components] == js
 
 
 @given(st.text(max_size=200))
 def test_from_jcal_is_total_on_text(text):
     try:
-        vobject.from_jcal(text)
-    except vobject.ParseError:
+        calcard.from_jcal(text)
+    except calcard.ParseError:
         pass  # errors are fine; crashes are not
 
 
@@ -120,6 +120,6 @@ json_values = st.recursive(
 @settings(max_examples=300)
 def test_from_jcal_is_total_on_json_structures(value):
     try:
-        vobject.from_jcal(value)
-    except vobject.ParseError:
+        calcard.from_jcal(value)
+    except calcard.ParseError:
         pass  # errors are fine; crashes are not

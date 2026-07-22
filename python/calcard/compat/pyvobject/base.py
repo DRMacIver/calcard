@@ -892,7 +892,7 @@ def foldOneLine(outbuf, input_, lineLength=75):
     """
 
     if lineLength == 75 and len(input_) >= lineLength:
-        from vobject._core import fold_line
+        from calcard._core import fold_line
 
         outbuf.write(fold_line(input_, 75, "\r\n"))
         return

@@ -1,3 +1,11 @@
+# calcard vendored copy: install the `icalendar`/`vobject` import aliases
+# before anything else — this package's own modules (and its test suite)
+# import each other by the upstream absolute name.
+from calcard.compat import install as _install_compat_aliases
+
+_install_compat_aliases()
+del _install_compat_aliases
+
 from icalendar.alarms import (
     Alarms,
     AlarmTime,
@@ -182,3 +190,12 @@ __all__ = [
     "version",
     "version_tuple",
 ]
+
+
+# calcard vendored copy: mirror every submodule loaded above into
+# sys.modules under the upstream `icalendar` name, so later alias imports
+# are cache hits (see calcard.compat.mirror).
+from calcard.compat import mirror as _mirror_compat_aliases
+
+_mirror_compat_aliases("icalendar")
+del _mirror_compat_aliases

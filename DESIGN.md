@@ -29,11 +29,13 @@ as a standalone Rust crate with Python bindings.
 Cargo.toml                  workspace
 crates/vobject-core/        pure-Rust implementation, no Python deps
 crates/vobject-py/          PyO3 bindings (cdylib, built by maturin)
-python/vobject/             Python package: clean API (typed.py, values.py,
-                            __init__.py) plus the py-vobject compat modules
-                            (base.py, icalendar.py, vcard.py, ...)
-python/icalendar/           vendored icalendar compat package (its upstream
-                            suite ships in python/icalendar/tests; the
+python/calcard/             Python package: clean API (typed.py, values.py,
+                            __init__.py)
+python/calcard/compat/      compatibility layers and the import-alias
+                            machinery (install()/mirror())
+  pyvobject/                py-vobject compat modules (base.py, ...)
+  icalendar/                vendored icalendar compat package (its upstream
+                            suite ships in .../icalendar/tests; the
                             src/icalendar/tests symlink keeps upstream
                             repo-relative fixture paths working)
 tests/                      Python test suite (pytest + Hypothesis)
@@ -77,12 +79,15 @@ polite values).
 
 ## Python distribution
 
-Distribution name `vobject-rs` (import name `vobject`), built with maturin
-(mixed Rust/Python layout). `vobject._core` is the compiled module; the
-public package is Python.
+Distribution and import name `calcard`, built with maturin (mixed
+Rust/Python layout). `calcard._core` is the compiled module (abi3, one
+wheel per platform); the public package is Python. The wheel ships only
+the `calcard` top-level package — compatibility with py-vobject and
+icalendar is provided under `calcard.compat` via opt-in import aliasing,
+never by squatting those distributions' names.
 
-- `vobject` — the clean modern API:
-  - `vobject.parse(text_or_bytes) -> Document`, `vobject.parse_one(...)`.
+- `calcard` — the clean modern API:
+  - `calcard.parse(text_or_bytes) -> Document`, `calcard.parse_one(...)`.
     Byte input is UTF-8; in lenient mode non-UTF-8 legacy data is decoded
     as Latin-1 with a recorded `Repair`.
   - Typed component views: `Calendar`, `Event`, `Todo`, `Journal`,
@@ -91,12 +96,16 @@ public package is Python.
     Python types; the lossless `Component`/`Property` model underneath.
   - `document.serialize() -> str`; `to_jcal`/`from_jcal`,
     `to_xcal`/`from_xcal`, `expand_rrule`.
-- py-vobject compatibility lives directly in `vobject.base`,
-  `vobject.icalendar`, `vobject.vcard`, `vobject.hcalendar`,
-  `vobject.change_tz`, `vobject.ics_diff` (loaded lazily; the vendored
-  upstream suite runs from `tests_upstream/pyvobject`).
-- icalendar compatibility is the top-level `python/icalendar` package
-  (adapted from upstream 7.2.2; its own suite runs against it in place).
+- py-vobject compatibility lives in `calcard.compat.pyvobject` (the
+  vendored upstream suite runs from `tests_upstream/pyvobject`).
+- icalendar compatibility is `calcard.compat.icalendar` (adapted from
+  upstream 7.2.2; its own suite runs against it in place).
+- Importing either compat package installs a `sys.meta_path` alias so the
+  upstream import names (`vobject`, `icalendar`) resolve to the compat
+  packages — module objects are shared between the two names, canonical
+  identity is preserved, and already-loaded submodules are mirrored into
+  `sys.modules` so alias imports are cache hits (`calcard.compat.install`
+  / `.mirror`; `.uninstall` reverses it).
 
 ## Testing strategy
 
@@ -134,7 +143,7 @@ public package is Python.
 - [x] py-vobject compat (drop-in `vobject.base` etc.): upstream suite
       passes 58/58 (vendored under tests_upstream/pyvobject)
 - [x] icalendar compat (drop-in `icalendar` package): upstream suite
-      passes 15,972 tests (ships inside python/icalendar/tests)
+      passes 15,972 tests (ships inside the compat package)
 - [x] RSCALE (RFC 7529) recurrence via ICU4X calendars: 34/34 libical
       RSCALE cases (one Chinese leap-month case compared on the agreed
       prefix — ICU4C and ICU4X diverge on century-out lunar predictions)

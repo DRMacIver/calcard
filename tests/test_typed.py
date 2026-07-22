@@ -3,7 +3,7 @@
 import datetime as dt
 from zoneinfo import ZoneInfo
 
-import vobject
+import calcard
 
 CAL = (
     "BEGIN:VCALENDAR\r\n"
@@ -37,7 +37,7 @@ LONDON = ZoneInfo("Europe/London")
 
 
 def test_calendar_and_event_accessors():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     (cal,) = doc.calendars
     assert cal.version == "2.0"
     assert cal.prodid == "-//test//EN"
@@ -53,7 +53,7 @@ def test_calendar_and_event_accessors():
 
 
 def test_occurrences():
-    (cal,) = vobject.parse(CAL).calendars
+    (cal,) = calcard.parse(CAL).calendars
     (event,) = cal.events
     got = event.occurrences()
     assert got == [
@@ -64,18 +64,18 @@ def test_occurrences():
 
 
 def test_event_without_rrule_occurs_once():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     event.component.children = [
         c
         for c in event.component.children
-        if not (isinstance(c, vobject.Property) and c.name == "RRULE")
+        if not (isinstance(c, calcard.Property) and c.name == "RRULE")
     ]
     assert event.occurrences() == [event.start]
 
 
 def test_mutation_via_typed_view_reflects_in_serialization():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     event.summary = "Coffee; with cream"
     event.start = dt.datetime(2026, 7, 23, 9, 0, tzinfo=LONDON)
@@ -83,12 +83,12 @@ def test_mutation_via_typed_view_reflects_in_serialization():
     assert "SUMMARY:Coffee\\; with cream\r\n" in out
     assert "DTSTART;TZID=Europe/London:20260723T090000\r\n" in out
     # The document reparses cleanly and the view agrees.
-    again = vobject.parse(out, strict=True)
+    again = calcard.parse(out, strict=True)
     assert again.calendars[0].events[0].summary == "Coffee; with cream"
 
 
 def test_setting_utc_and_date_values():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     event.start = dt.datetime(2026, 7, 23, 9, 0, tzinfo=dt.timezone.utc)
     assert "DTSTART:20260723T090000Z\r\n" in doc.serialize()
@@ -102,7 +102,7 @@ def test_date_event_default_end_is_next_day():
         "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n"
         "DTSTART;VALUE=DATE:20260722\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
     )
-    event = vobject.parse(text).calendars[0].events[0]
+    event = calcard.parse(text).calendars[0].events[0]
     assert event.end == dt.date(2026, 7, 23)
     assert event.duration == dt.timedelta(days=1)
 
@@ -113,7 +113,7 @@ def test_duration_used_for_end():
         "DTSTART:20260722T160000Z\r\nDURATION:PT2H\r\n"
         "END:VEVENT\r\nEND:VCALENDAR\r\n"
     )
-    event = vobject.parse(text).calendars[0].events[0]
+    event = calcard.parse(text).calendars[0].events[0]
     assert event.end == dt.datetime(2026, 7, 22, 18, 0, tzinfo=dt.timezone.utc)
 
 
@@ -123,7 +123,7 @@ def test_todo_due():
         "SUMMARY:Fix\r\nDUE:20260801T120000Z\r\n"
         "END:VTODO\r\nEND:VCALENDAR\r\n"
     )
-    todo = vobject.parse(text).calendars[0].todos[0]
+    todo = calcard.parse(text).calendars[0].todos[0]
     assert todo.summary == "Fix"
     assert todo.due == dt.datetime(2026, 8, 1, 12, 0, tzinfo=dt.timezone.utc)
 
@@ -132,7 +132,7 @@ def test_fixed_offset_datetime_preserves_instant():
     # Regression: an aware tzinfo without a zone name (e.g. a fixed
     # timezone(timedelta)) used to be written as floating local time,
     # silently changing the instant.
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     ist = dt.timezone(dt.timedelta(hours=5, minutes=30))
     value = dt.datetime(2026, 7, 22, 10, 0, tzinfo=ist)
@@ -140,12 +140,12 @@ def test_fixed_offset_datetime_preserves_instant():
     assert event.start == value
     out = doc.serialize()
     assert "DTSTART:20260722T043000Z\r\n" in out
-    again = vobject.parse(out, strict=True)
+    again = calcard.parse(out, strict=True)
     assert again.calendars[0].events[0].start == value
 
 
 def test_negative_fixed_offset_datetime_preserves_instant():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     value = dt.datetime(
         2026, 1, 2, 1, 30, tzinfo=dt.timezone(dt.timedelta(hours=-7))
@@ -160,14 +160,14 @@ def test_todo_due_setter_fixed_offset_round_trips():
         "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\n"
         "SUMMARY:Fix\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
     )
-    doc = vobject.parse(text)
+    doc = calcard.parse(text)
     todo = doc.calendars[0].todos[0]
     value = dt.datetime(
         2026, 8, 1, 12, 0, tzinfo=dt.timezone(dt.timedelta(hours=3))
     )
     todo.due = value
     assert todo.due == value
-    again = vobject.parse(doc.serialize(), strict=True)
+    again = calcard.parse(doc.serialize(), strict=True)
     assert again.calendars[0].todos[0].due == value
 
 
@@ -175,7 +175,7 @@ def test_pytz_style_zone_attribute_used_as_tzid():
     pytz = __import__("pytz")
     zone = pytz.timezone("Europe/London")
     value = zone.localize(dt.datetime(2026, 7, 22, 16, 0))
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     event.start = value
     assert "DTSTART;TZID=Europe/London:20260722T160000\r\n" in doc.serialize()
@@ -190,7 +190,7 @@ def test_set_datetime_preserves_unrelated_params():
         "DTEND;X-FOO=bar;TZID=Europe/London:20260722T163000\r\n"
         "END:VEVENT\r\nEND:VCALENDAR\r\n"
     )
-    event = vobject.parse(text).calendars[0].events[0]
+    event = calcard.parse(text).calendars[0].events[0]
     event.end = dt.datetime(2026, 7, 23, 10, 0, tzinfo=LONDON)
     params = {p.name.upper(): p.values for p in event.component.prop("DTEND").params}
     assert params.get("X-FOO") == ["bar"]
@@ -212,7 +212,7 @@ def test_set_datetime_preserves_unrelated_params():
 
 
 def test_card_accessors():
-    (card,) = vobject.parse(CARD).cards
+    (card,) = calcard.parse(CARD).cards
     assert card.fn == "Alice Example"
     assert card.version == "4.0"
     assert card.n == [["Example"], ["Alice"], [""], [""], [""]]
@@ -220,42 +220,42 @@ def test_card_accessors():
 
 
 def test_wrap_dispatch():
-    doc = vobject.parse(CAL + CARD)
-    views = [vobject.wrap(c) for c in doc]
-    assert isinstance(views[0], vobject.Calendar)
-    assert isinstance(views[1], vobject.Card)
-    unknown = vobject.Component("X-CUSTOM")
-    assert type(vobject.wrap(unknown)) is vobject.TypedComponent
+    doc = calcard.parse(CAL + CARD)
+    views = [calcard.wrap(c) for c in doc]
+    assert isinstance(views[0], calcard.Calendar)
+    assert isinstance(views[1], calcard.Card)
+    unknown = calcard.Component("X-CUSTOM")
+    assert type(calcard.wrap(unknown)) is calcard.TypedComponent
 
 
 def test_wrong_component_type_rejected():
     import pytest
 
-    (card,) = vobject.parse(CARD).components
+    (card,) = calcard.parse(CARD).components
     with pytest.raises(ValueError):
-        vobject.Event(card)
+        calcard.Event(card)
 
 
-def _event_of(body: str) -> vobject.Event:
+def _event_of(body: str) -> calcard.Event:
     text = f"BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n{body}END:VEVENT\r\nEND:VCALENDAR\r\n"
-    return vobject.parse(text).calendars[0].events[0]
+    return calcard.parse(text).calendars[0].events[0]
 
 
 def test_card_vcard3_dialect():
-    card3 = vobject.parse(
+    card3 = calcard.parse(
         "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Bob\r\nEND:VCARD\r\n"
     ).cards[0]
     assert card3.DIALECT == "vcard3"
-    card21 = vobject.parse(
+    card21 = calcard.parse(
         "BEGIN:VCARD\r\nVERSION:2.1\r\nFN:Bob\r\nEND:VCARD\r\n"
     ).cards[0]
     assert card21.DIALECT == "vcard3"
-    card4 = vobject.parse(CARD).cards[0]
+    card4 = calcard.parse(CARD).cards[0]
     assert card4.DIALECT == "vcard4"
 
 
 def test_card_tels():
-    card = vobject.parse(
+    card = calcard.parse(
         "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Bob\r\n"
         "TEL:+441234\r\nTEL:+445678\r\nEND:VCARD\r\n"
     ).cards[0]
@@ -306,7 +306,7 @@ def test_end_setter_creates_property():
 
 
 def test_repr_and_eq():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
     assert repr(event).startswith("Event(")
     assert event == doc.calendars[0].events[0]
@@ -336,7 +336,7 @@ def test_timezone_tzid():
         "BEGIN:VCALENDAR\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/London\r\n"
         "END:VTIMEZONE\r\nEND:VCALENDAR\r\n"
     )
-    cal = vobject.parse(text).calendars[0]
+    cal = calcard.parse(text).calendars[0]
     (tz,) = cal.timezones
     assert tz.tzid == "Europe/London"
 
@@ -346,30 +346,30 @@ def test_calendar_journals():
         "BEGIN:VCALENDAR\r\nBEGIN:VJOURNAL\r\nSUMMARY:Dear diary\r\n"
         "DTSTART;VALUE=DATE:20260722\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n"
     )
-    cal = vobject.parse(text).calendars[0]
+    cal = calcard.parse(text).calendars[0]
     (journal,) = cal.journals
     assert journal.summary == "Dear diary"
     assert journal.start == dt.date(2026, 7, 22)
 
 
 def test_status_setter():
-    ev = vobject.parse(CAL).calendars[0].events[0]
+    ev = calcard.parse(CAL).calendars[0].events[0]
     assert ev.status is None
     ev.status = "CANCELLED"
     assert ev.status == "CANCELLED"
     # A freshly parsed copy is unaffected.
-    assert vobject.parse(CAL).calendars[0].events[0].status is None
+    assert calcard.parse(CAL).calendars[0].events[0].status is None
 
 
 def test_status_setter_serializes():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     ev = doc.calendars[0].events[0]
     ev.status = "TENTATIVE"
     assert "STATUS:TENTATIVE" in doc.serialize()
 
 
 def test_rrule_setter_round_trips():
-    doc = vobject.parse(CAL)
+    doc = calcard.parse(CAL)
     ev = doc.calendars[0].events[0]
     ev.rrule = "FREQ=DAILY;COUNT=4"
     assert ev.rrule == "FREQ=DAILY;COUNT=4"
@@ -378,7 +378,7 @@ def test_rrule_setter_round_trips():
 
 
 def test_rrule_setter_creates_property():
-    doc = vobject.parse(
+    doc = calcard.parse(
         "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n"
         "DTSTART:20260101T090000\r\n"
         "END:VEVENT\r\nEND:VCALENDAR\r\n"
@@ -392,9 +392,9 @@ def test_rrule_setter_creates_property():
 def test_rrule_setter_rejects_invalid_rules():
     import pytest
 
-    ev = vobject.parse(CAL).calendars[0].events[0]
+    ev = calcard.parse(CAL).calendars[0].events[0]
     for bad in ["FREQ=BOGUS", "COUNT=3", "", "FREQ=DAILY;INTERVAL=0"]:
-        with pytest.raises(vobject.ParseError):
+        with pytest.raises(calcard.ParseError):
             ev.rrule = bad
     # The original rule is untouched after a failed assignment.
     assert ev.rrule == "FREQ=WEEKLY;COUNT=3"

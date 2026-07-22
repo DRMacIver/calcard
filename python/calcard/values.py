@@ -15,8 +15,8 @@ from __future__ import annotations
 import datetime as _dt
 from typing import Any
 
-from vobject._core import Property
-from vobject._core import typed_value as _typed_value
+from calcard._core import Property
+from calcard._core import typed_value as _typed_value
 
 try:
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError

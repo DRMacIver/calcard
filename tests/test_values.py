@@ -7,13 +7,13 @@ from zoneinfo import ZoneInfo
 
 from hypothesis import given, strategies as st
 
-import vobject
-from vobject import native_value
+import calcard
+from calcard import native_value
 
 
 def prop_of(line: str, dialect: str = "icalendar"):
     wrapper = "VCALENDAR" if dialect == "icalendar" else "VCARD"
-    doc = vobject.parse(f"BEGIN:{wrapper}\r\n{line}\r\nEND:{wrapper}\r\n")
+    doc = calcard.parse(f"BEGIN:{wrapper}\r\n{line}\r\nEND:{wrapper}\r\n")
     return doc.components[0].properties()[0]
 
 
@@ -120,7 +120,7 @@ def test_date_shaped_value_in_datetime_position():
 
 
 def test_expand_rrule():
-    got = vobject.expand_rrule(
+    got = calcard.expand_rrule(
         "FREQ=WEEKLY;COUNT=3", dt.datetime(2026, 7, 22, 9, 0, 0)
     )
     assert got == [
@@ -128,26 +128,26 @@ def test_expand_rrule():
         dt.datetime(2026, 7, 29, 9, 0),
         dt.datetime(2026, 8, 5, 9, 0),
     ]
-    got = vobject.expand_rrule("FREQ=YEARLY;COUNT=2", dt.date(2024, 2, 29))
+    got = calcard.expand_rrule("FREQ=YEARLY;COUNT=2", dt.date(2024, 2, 29))
     assert got == [dt.date(2024, 2, 29), dt.date(2028, 2, 29)]
 
 
 def test_expand_rrule_infinite_respects_limit():
-    got = vobject.expand_rrule("FREQ=DAILY", dt.date(2026, 1, 1), limit=5)
+    got = calcard.expand_rrule("FREQ=DAILY", dt.date(2026, 1, 1), limit=5)
     assert len(got) == 5
 
 
 def test_to_jcal_matches_fixture():
     fixtures = Path(__file__).parent.parent / "conformance/fixtures/icaljs/parser"
-    comp = vobject.parse((fixtures / "boolean.ics").read_bytes()).components[0]
+    comp = calcard.parse((fixtures / "boolean.ics").read_bytes()).components[0]
     expected = json.loads((fixtures / "boolean.json").read_text())
-    assert vobject.to_jcal(comp) == expected
+    assert calcard.to_jcal(comp) == expected
 
 
 @given(st.integers(min_value=1, max_value=30), st.integers(min_value=1, max_value=6))
 def test_expand_rrule_daily_interval_property(count, interval):
     start = dt.datetime(2026, 1, 1, 12, 0, 0)
-    got = vobject.expand_rrule(f"FREQ=DAILY;COUNT={count};INTERVAL={interval}", start)
+    got = calcard.expand_rrule(f"FREQ=DAILY;COUNT={count};INTERVAL={interval}", start)
     assert len(got) == count
     for i, d in enumerate(got):
         assert d == start + dt.timedelta(days=i * interval)
