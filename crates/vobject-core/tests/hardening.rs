@@ -372,3 +372,94 @@ fn parse_bytes_strips_bom() {
     assert_eq!(parsed.components.len(), 1);
     assert!(parsed.repairs.is_empty());
 }
+
+// --- RSCALE must honor BYDAY ordinals, time-of-day parts, and reject
+// BYWEEKNO rather than silently dropping them ---
+
+fn expand_rscale_all(rule: &str, start: &str, cap: usize) -> Vec<String> {
+    use vobject_core::rscale::expand_rscale;
+    let recur = Recur::parse(rule).unwrap();
+    let dtstart = DateOrDateTime::parse(start).unwrap();
+    expand_rscale(&recur, dtstart, ExpandLimits::default())
+        .unwrap()
+        .into_iter()
+        .take(cap)
+        .map(|d| d.to_string())
+        .collect()
+}
+
+#[test]
+fn rscale_monthly_byday_ordinal() {
+    // Second Sunday of each month, 2026: Jan 11, Feb 8, Mar 8.
+    assert_eq!(
+        expand_rscale_all(
+            "RSCALE=GREGORIAN;FREQ=MONTHLY;BYDAY=2SU;COUNT=3",
+            "20260111",
+            5
+        ),
+        vec!["20260111", "20260208", "20260308"]
+    );
+}
+
+#[test]
+fn rscale_yearly_byday_ordinal_in_month() {
+    // Fourth Thursday of November (Thanksgiving): 2026-11-26, 2027-11-25.
+    assert_eq!(
+        expand_rscale_all(
+            "RSCALE=GREGORIAN;FREQ=YEARLY;BYMONTH=11;BYDAY=4TH;COUNT=2",
+            "20261126",
+            5
+        ),
+        vec!["20261126", "20271125"]
+    );
+}
+
+#[test]
+fn rscale_byhour_expands_time() {
+    // BYHOUR must expand the time set, not silently pin DTSTART's hour.
+    assert_eq!(
+        expand_rscale_all(
+            "RSCALE=GREGORIAN;FREQ=YEARLY;BYHOUR=9,15;COUNT=4",
+            "20260101T090000",
+            6
+        ),
+        vec![
+            "20260101T090000",
+            "20260101T150000",
+            "20270101T090000",
+            "20270101T150000"
+        ]
+    );
+}
+
+#[test]
+fn rscale_byweekno_rejected() {
+    use vobject_core::rscale::expand_rscale;
+    let recur = Recur::parse("RSCALE=CHINESE;FREQ=YEARLY;BYWEEKNO=20").unwrap();
+    let dtstart = DateOrDateTime::parse("20260501").unwrap();
+    assert!(expand_rscale(&recur, dtstart, ExpandLimits::default()).is_err());
+}
+
+#[test]
+fn rscale_chinese_monthly_byday_is_sane() {
+    // Not hand-verifiable, but must be monotonically increasing Mondays.
+    use vobject_core::value::datetime::Weekday;
+    let out = expand_rscale_all(
+        "RSCALE=CHINESE;FREQ=MONTHLY;BYDAY=1MO;COUNT=6",
+        "20260101",
+        10
+    );
+    assert_eq!(out.len(), 6);
+    let mut prev = None;
+    for s in &out {
+        let d = match DateOrDateTime::parse(s).unwrap() {
+            DateOrDateTime::Date(d) => d,
+            DateOrDateTime::DateTime(dt) => dt.date,
+        };
+        assert_eq!(d.weekday(), Weekday::Monday, "{s}");
+        if let Some(p) = prev {
+            assert!(d.to_ordinal() > p, "{s} not increasing");
+        }
+        prev = Some(d.to_ordinal());
+    }
+}

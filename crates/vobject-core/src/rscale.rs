@@ -19,7 +19,7 @@
 use icu_calendar::types::Month as IcuMonth;
 use icu_calendar::{AnyCalendar, AnyCalendarKind, Date as IcuDate, Iso, Ref};
 
-use crate::value::datetime::{Date, DateTime, Time};
+use crate::value::datetime::{Date, DateTime, Time, Weekday};
 use crate::value::recur::{Frequency, Recur, RecurMonth, Skip, Until};
 use crate::value::{DateOrDateTime, ValueError};
 
@@ -219,6 +219,59 @@ impl<'c> Engine<'c> {
     }
 }
 
+/// ISO ordinal of the nth (positive from the start, negative from the end)
+/// weekday within a contiguous day range, or None if it falls outside.
+fn nth_weekday_in_range(first: i64, len: i64, wd: Weekday, n: i8) -> Option<i64> {
+    if n > 0 {
+        let first_date = Date::from_ordinal(first).ok()?;
+        let offset = first_date.weekday().days_until(wd) as i64;
+        let d = first + offset + (n as i64 - 1) * 7;
+        (d < first + len).then_some(d)
+    } else {
+        let last = first + len - 1;
+        let last_date = Date::from_ordinal(last).ok()?;
+        let back = (last_date.weekday().number0() + 7 - wd.number0()) % 7;
+        let d = last - back as i64 + (n as i64 + 1) * 7;
+        (d >= first).then_some(d)
+    }
+}
+
+/// Days of one month slot matching BYMONTHDAY (when present) and BYDAY:
+/// plain entries match by weekday, ordinal entries via the pre-resolved
+/// `ordinal_days` set (month- or year-relative per the caller). Mirrors the
+/// Gregorian engine's day masks over recurrence-calendar month geometry.
+fn slot_days_filtered(slot: &MonthSlot, recur: &Recur, ordinal_days: &[i64]) -> Vec<i64> {
+    let has_ordinal = recur.by_day.iter().any(|w| w.ordinal.is_some());
+    let mut out = Vec::new();
+    for day in 1..=slot.days {
+        let ord = slot.first_iso + day as i64 - 1;
+        if !recur.by_month_day.is_empty() {
+            let dd = day as i8;
+            let dim = slot.days as i8;
+            if !recur
+                .by_month_day
+                .iter()
+                .any(|&md| md == dd || (md < 0 && dim + md + 1 == dd))
+            {
+                continue;
+            }
+        }
+        let Ok(d) = Date::from_ordinal(ord) else {
+            continue;
+        };
+        let wd = d.weekday();
+        let plain = recur
+            .by_day
+            .iter()
+            .any(|w| w.ordinal.is_none() && w.weekday == wd);
+        let ordinal = has_ordinal && ordinal_days.contains(&ord);
+        if plain || ordinal {
+            out.push(ord);
+        }
+    }
+    out
+}
+
 /// Expand an RSCALE rule with YEARLY or MONTHLY frequency.
 pub fn expand_rscale(
     recur: &Recur,
@@ -252,7 +305,11 @@ pub fn expand_rscale(
         ),
         DateOrDateTime::DateTime(dt) => (dt.date, dt.time, false),
     };
-    let start_ordinal = start_date.to_ordinal();
+    let start_epoch = DateTime {
+        date: start_date,
+        time,
+    }
+    .to_epoch_like();
     let start_r = to_icu_iso(start_date)?.to_calendar(Ref(&cal));
     let start_year = start_r.extended_year();
     let start_month = RecurMonth {
@@ -261,15 +318,65 @@ pub fn expand_rscale(
     };
     let start_day = start_r.day_of_month().0;
 
-    let months_wanted: Vec<RecurMonth> = if recur.by_month.is_empty() {
-        vec![start_month]
-    } else {
+    if !recur.by_week_no.is_empty() {
+        // Week numbering in an arbitrary recurrence calendar has no
+        // agreed-upon semantics (and no ICU4X support); refusing loudly
+        // beats silently ignoring the rule part.
+        return Err(ValueError::new("BYWEEKNO is not supported with RSCALE"));
+    }
+
+    let has_by_day = !recur.by_day.is_empty();
+
+    // Mirror the Gregorian engine's DTSTART-derived defaults: the start
+    // month/day pin in only when no day-selecting rule part is present.
+    // An empty months_wanted means "all months of the year".
+    let months_wanted: Vec<RecurMonth> = if !recur.by_month.is_empty() {
         recur.by_month.clone()
-    };
-    let days_wanted: Vec<i8> = if recur.by_month_day.is_empty() {
-        vec![start_day as i8]
+    } else if has_by_day || !recur.by_year_day.is_empty() {
+        Vec::new()
     } else {
+        vec![start_month]
+    };
+    let days_wanted: Vec<i8> = if !recur.by_month_day.is_empty() {
         recur.by_month_day.clone()
+    } else {
+        vec![start_day as i8]
+    };
+
+    // Time-of-day sets, defaulted from DTSTART exactly like the Gregorian
+    // engine (ignored entirely for a date-valued DTSTART).
+    let times: Vec<Time> = if date_only {
+        vec![time]
+    } else {
+        let mut hours = if recur.by_hour.is_empty() {
+            vec![time.hour]
+        } else {
+            recur.by_hour.clone()
+        };
+        let mut minutes = if recur.by_minute.is_empty() {
+            vec![time.minute]
+        } else {
+            recur.by_minute.clone()
+        };
+        let mut seconds = if recur.by_second.is_empty() {
+            vec![time.second]
+        } else {
+            recur.by_second.clone()
+        };
+        hours.sort_unstable();
+        minutes.sort_unstable();
+        seconds.sort_unstable();
+        let mut ts = Vec::new();
+        for &h in &hours {
+            for &m in &minutes {
+                for &s in &seconds {
+                    if let Ok(t) = Time::new(h, m, s.min(60), time.utc) {
+                        ts.push(t);
+                    }
+                }
+            }
+        }
+        ts
     };
 
     let until_ordinal: Option<(i64, Option<i64>)> = recur.until.map(|u| match u {
@@ -314,9 +421,82 @@ pub fn expand_rscale(
         let mut candidates: Vec<i64> = Vec::new();
         match freq {
             Frequency::Yearly => {
+                // Month- or year-relative BYDAY ordinal targets, mirroring
+                // the Gregorian engine: relative to each selected month
+                // when BYMONTH is present, to the whole year otherwise.
+                let ordinal_days: Vec<i64> = if has_by_day {
+                    let mut out_days = Vec::new();
+                    if months_wanted.is_empty() {
+                        for w in &recur.by_day {
+                            if let Some(n) = w.ordinal {
+                                out_days.extend(nth_weekday_in_range(
+                                    months[0].first_iso,
+                                    days_in_year,
+                                    w.weekday,
+                                    n,
+                                ));
+                            }
+                        }
+                    } else {
+                        for want in &months_wanted {
+                            if let Some(slot) = engine.resolve_month(&months, *want) {
+                                for w in &recur.by_day {
+                                    if let Some(n) = w.ordinal {
+                                        out_days.extend(nth_weekday_in_range(
+                                            slot.first_iso,
+                                            slot.days as i64,
+                                            w.weekday,
+                                            n,
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    out_days
+                } else {
+                    Vec::new()
+                };
+
                 if !recur.by_year_day.is_empty() {
                     for &yd in &recur.by_year_day {
                         candidates.extend(engine.resolve_year_day(&months, days_in_year, yd));
+                    }
+                    // BYMONTH and BYDAY limit BYYEARDAY-generated days.
+                    if !months_wanted.is_empty() {
+                        candidates.retain(|&ord| {
+                            months_wanted.iter().any(|want| {
+                                engine.resolve_month(&months, *want).is_some_and(|s| {
+                                    (s.first_iso..s.first_iso + s.days as i64).contains(&ord)
+                                })
+                            })
+                        });
+                    }
+                    if has_by_day {
+                        candidates.retain(|&ord| {
+                            let Ok(d) = Date::from_ordinal(ord) else {
+                                return false;
+                            };
+                            let wd = d.weekday();
+                            recur
+                                .by_day
+                                .iter()
+                                .any(|w| w.ordinal.is_none() && w.weekday == wd)
+                                || ordinal_days.contains(&ord)
+                        });
+                    }
+                } else if has_by_day {
+                    // BYDAY expands within the selected months (or year).
+                    let slots: Vec<MonthSlot> = if months_wanted.is_empty() {
+                        months.clone()
+                    } else {
+                        months_wanted
+                            .iter()
+                            .filter_map(|want| engine.resolve_month(&months, *want))
+                            .collect()
+                    };
+                    for slot in &slots {
+                        candidates.extend(slot_days_filtered(slot, recur, &ordinal_days));
                     }
                 } else {
                     for want in &months_wanted {
@@ -337,8 +517,23 @@ pub fn expand_rscale(
                             m.month == slot.month.number() && m.leap == slot.month.is_leap()
                         });
                     if month_matches {
-                        for &d in &days_wanted {
-                            candidates.extend(engine.resolve_day(*slot, d));
+                        if has_by_day {
+                            let mut ordinal_days = Vec::new();
+                            for w in &recur.by_day {
+                                if let Some(n) = w.ordinal {
+                                    ordinal_days.extend(nth_weekday_in_range(
+                                        slot.first_iso,
+                                        slot.days as i64,
+                                        w.weekday,
+                                        n,
+                                    ));
+                                }
+                            }
+                            candidates.extend(slot_days_filtered(slot, recur, &ordinal_days));
+                        } else {
+                            for &d in &days_wanted {
+                                candidates.extend(engine.resolve_day(*slot, d));
+                            }
                         }
                     }
                 }
@@ -361,67 +556,65 @@ pub fn expand_rscale(
             }
         }
 
-        // BYDAY as a plain weekday limit (ordinals are not defined for
-        // RSCALE expansion here).
-        if !recur.by_day.is_empty() {
-            candidates.retain(|&ord| {
-                Date::from_ordinal(ord)
-                    .map(|d| recur.by_day.iter().any(|w| w.weekday == d.weekday()))
-                    .unwrap_or(false)
-            });
-        }
-
         candidates.sort_unstable();
         candidates.dedup();
 
-        // BYSETPOS within the period.
+        // Cross candidate days with the time set (both sorted, so the
+        // instants come out in instant order), then BYSETPOS over the
+        // period's instants — matching the Gregorian engine.
+        let mut instants: Vec<(i64, Time)> = Vec::with_capacity(candidates.len() * times.len());
+        for &ord in &candidates {
+            for &t in &times {
+                instants.push((ord, t));
+            }
+        }
         if !recur.by_set_pos.is_empty() {
-            let n = candidates.len() as i32;
-            let mut selected: Vec<i64> = recur
+            let n = instants.len() as i32;
+            let mut idx: Vec<i32> = recur
                 .by_set_pos
                 .iter()
                 .filter_map(|&p| {
                     let i = if p > 0 { p as i32 - 1 } else { n + p as i32 };
-                    (0..n).contains(&i).then(|| candidates[i as usize])
+                    (0..n).contains(&i).then_some(i)
                 })
                 .collect();
-            selected.sort_unstable();
-            selected.dedup();
-            candidates = selected;
+            idx.sort_unstable();
+            idx.dedup();
+            instants = idx.into_iter().map(|i| instants[i as usize]).collect();
         }
 
-        if candidates.is_empty() {
+        if instants.is_empty() {
             empty_periods += 1;
             continue;
         }
         empty_periods = 0;
 
-        for ord in candidates {
-            if ord < start_ordinal {
+        for (ord, t) in instants {
+            let date = Date::from_ordinal(ord)?;
+            let instant = DateTime { date, time: t };
+            let epoch = instant.to_epoch_like();
+            if epoch < start_epoch {
                 continue;
             }
             if let Some(last) = last_emitted {
-                if ord <= last {
+                if epoch <= last {
                     continue;
                 }
             }
-            let date = Date::from_ordinal(ord)?;
             if let Some((until_date, until_instant)) = until_ordinal {
                 let past = match until_instant {
                     None => ord > until_date,
-                    Some(instant) => {
-                        DateTime { date, time }.to_epoch_like() > instant
-                    }
+                    Some(limit) => epoch > limit,
                 };
                 if past {
                     break 'periods;
                 }
             }
-            last_emitted = Some(ord);
+            last_emitted = Some(epoch);
             out.push(if date_only {
                 DateOrDateTime::Date(date)
             } else {
-                DateOrDateTime::DateTime(DateTime { date, time })
+                DateOrDateTime::DateTime(instant)
             });
             if let Some(count) = count_target {
                 if out.len() as u64 >= count {

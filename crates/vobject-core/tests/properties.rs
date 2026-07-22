@@ -520,3 +520,77 @@ fn duration_parse_is_total(tc: hegel::TestCase) {
         assert_eq!(redisplayed.total_seconds(), total, "{s:?}");
     }
 }
+
+/// RSCALE=GREGORIAN with SKIP=OMIT is RFC 5545 semantics by definition
+/// (RFC 7529 §4.1), so the RSCALE engine must agree with the Gregorian
+/// engine on arbitrary YEARLY/MONTHLY rules. This is the oracle that
+/// catches any BY-part the RSCALE path drops or mishandles.
+#[hegel::test(test_cases = 300)]
+fn rscale_gregorian_matches_gregorian_engine(tc: hegel::TestCase) {
+    use vobject_core::rrule::{expand, ExpandLimits, Expansion};
+    use vobject_core::rscale::expand_rscale;
+    use vobject_core::value::{DateOrDateTime, Recur};
+
+    let freq = tc.draw(generators::sampled_from(vec!["MONTHLY", "YEARLY"]));
+    let mut rule = format!("FREQ={freq}");
+    let count = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
+    rule.push_str(&format!(";COUNT={count}"));
+    if tc.draw(generators::booleans()) {
+        let interval = tc.draw(generators::integers::<u8>().min_value(1).max_value(4));
+        rule.push_str(&format!(";INTERVAL={interval}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let day = tc.draw(generators::sampled_from(vec![
+            "MO", "TU", "FR", "SU", "1MO", "2SU", "3WE", "4TH", "-1FR", "-2SA",
+        ]));
+        rule.push_str(&format!(";BYDAY={day}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let m = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
+        rule.push_str(&format!(";BYMONTH={m}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let md = tc.draw(generators::integers::<i8>().min_value(-28).max_value(28));
+        if md != 0 {
+            rule.push_str(&format!(";BYMONTHDAY={md}"));
+        }
+    }
+    if tc.draw(generators::booleans()) {
+        let h = tc.draw(generators::integers::<u8>().max_value(23));
+        rule.push_str(&format!(";BYHOUR={h}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let sp = tc.draw(generators::integers::<i8>().min_value(-3).max_value(3));
+        if sp != 0 {
+            rule.push_str(&format!(";BYSETPOS={sp}"));
+        }
+    }
+
+    let year = tc.draw(generators::integers::<i32>().min_value(1990).max_value(2080));
+    let month = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
+    let day = tc.draw(generators::integers::<u8>().min_value(1).max_value(28));
+    let dtstart_s = format!("{year:04}{month:02}{day:02}T060000");
+    let dtstart = DateOrDateTime::parse(&dtstart_s).unwrap();
+
+    let gregorian_rule = Recur::parse(&rule).unwrap();
+    let rscale_rule = Recur::parse(&format!("RSCALE=GREGORIAN;SKIP=OMIT;{rule}")).unwrap();
+
+    let via_gregorian: Vec<String> = match expand(
+        &gregorian_rule,
+        dtstart,
+        ExpandLimits::default(),
+    )
+    .unwrap()
+    {
+        Expansion::Gregorian(iter) => iter.take(count as usize).map(|d| d.to_string()).collect(),
+        Expansion::Rscale(_) => panic!("plain rule must use the Gregorian engine"),
+    };
+    let via_rscale: Vec<String> = expand_rscale(&rscale_rule, dtstart, ExpandLimits::default())
+        .unwrap()
+        .into_iter()
+        .take(count as usize)
+        .map(|d| d.to_string())
+        .collect();
+
+    assert_eq!(via_rscale, via_gregorian, "{rule} from {dtstart_s}");
+}
