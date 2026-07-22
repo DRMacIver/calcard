@@ -92,6 +92,10 @@ def diff(left, right):
                     if matchResult is not None:
                         output.append(matchResult)
 
+        # anything left over on the right was absent from the left
+        for rightComp in rightList[rightIndex:]:
+            output.append((None, rightComp))
+
         return output
 
     def newComponent(name, body):  # pylint:disable=unused-variable
@@ -147,14 +151,15 @@ def diff(left, right):
             leftComponents, rightComponents = zip(*childPairList)
             if len(leftComponents) > 0:
                 # filter out None
-                left.contents[name] = filter(None, leftComponents)
+                left.contents[name] = [comp for comp in leftComponents if comp is not None]
             if len(rightComponents) > 0:
                 # filter out None
-                right.contents[name] = filter(None, rightComponents)
+                right.contents[name] = [comp for comp in rightComponents if comp is not None]
 
         for leftChildLine, rightChildLine in differentContentLines:
             nonEmpty = leftChildLine or rightChildLine
-            name = nonEmpty[0].name
+            # contents keys are lowercase; ContentLine names are uppercase
+            name = nonEmpty[0].name.lower()
             if leftChildLine is not None:
                 left.contents[name] = leftChildLine
             if rightChildLine is not None:

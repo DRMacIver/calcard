@@ -16,29 +16,10 @@ VERSION = "1.0.0"
 
 # Removed python 2 compatibility code : flake8 fixes
 basestring = (str, bytes)
-unicode_type = str
 
 
 def str_(s):
     return s
-
-
-def to_unicode(value):
-    """Converts a string argument to a unicode string.
-
-    If the argument is already a unicode string, it is returned unchanged.
-    Otherwise it must be a byte string and is decoded as utf8.
-    """
-    return value if isinstance(value, unicode_type) else value.decode("utf-8")
-
-
-def to_basestring(s):
-    """Converts a string argument to a byte string.
-
-    If the argument is already a byte string, it is returned unchanged.
-    Otherwise it must be a unicode string and is encoded as utf8.
-    """
-    return s if isinstance(s, bytes) else s.encode("utf-8")
 
 
 # ------------------------------------ Logging ---------------------------------
@@ -910,48 +891,27 @@ def foldOneLine(outbuf, input_, lineLength=75):
     behavior's effectively-unfolded serialization).
     """
 
-    def write_to_outbuf(text):
-        # TODO: remove py2
-        try:
-            outbuf.write(bytes(text, "UTF-8"))
-        except Exception:  # pylint: disable=broad-exception-caught
-            # fall back on py2 syntax
-            outbuf.write(text)
-
     if lineLength == 75 and len(input_) >= lineLength:
         from vobject._core import fold_line
 
-        write_to_outbuf(text=fold_line(input_, 75, "\r\n"))
+        outbuf.write(fold_line(input_, 75, "\r\n"))
         return
 
     if len(input_) < lineLength:
         # Optimize for unfolded line case
-        write_to_outbuf(text=input_)
+        outbuf.write(input_)
 
     else:
         # Look for valid utf8 range and write that out
-        start = 0
-        written = 0
         counter = 0  # counts line size in bytes
-        decoded = to_unicode(input_)
-        length = len(to_basestring(input_))
-        while written < length:
-            s = decoded[start]  # take one char
-            size = len(to_basestring(s))  # calculate it's size in bytes
+        for char in input_:
+            size = len(char.encode("utf-8"))  # the char's size in bytes
             if counter + size > lineLength:
-                write_to_outbuf(text="\r\n ")
+                outbuf.write("\r\n ")
                 counter = 1  # one for space
-
-            if str is unicode_type:
-                outbuf.write(to_unicode(s))
-            else:
-                # fall back on py2 syntax
-                outbuf.write(s.encode("utf-8"))
-
-            written += size
+            outbuf.write(char)
             counter += size
-            start += 1
-    write_to_outbuf(text="\r\n")
+    outbuf.write("\r\n")
 
 
 def defaultSerialize(obj, buf, lineLength):
