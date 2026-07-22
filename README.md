@@ -106,6 +106,17 @@ files. `zoneinfo` stays preferred for names it knows, since real-world
 `VTIMEZONE` copies are often stale. A TZID neither can resolve emits a
 `TimezoneResolutionWarning` and yields a naive datetime.
 
+The reverse direction — producing conformant documents whose `TZID`
+references are all defined in-document — is
+`calcard.add_missing_timezones(component)` (or the typed
+`Calendar.add_missing_timezones()`): it generates a `VTIMEZONE` from the
+host's zoneinfo for every referenced-but-undefined TZID, covering the
+span of the datetimes that reference it (padded a year each side).
+Observances are emitted as grouped onsets, not inferred recurrence
+rules, so the definition is exact over its window;
+`calcard.vtimezone_from_tzinfo` exposes the generator directly for
+custom windows or tzids.
+
 ## Porting from py-vobject or icalendar
 
 See `PORTING.md` for a mapping of the common py-vobject and icalendar

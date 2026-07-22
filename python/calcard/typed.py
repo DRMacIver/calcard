@@ -115,7 +115,13 @@ class TypedComponent:
         value = native_value(prop, self.DIALECT, timezones=self._timezones)
         return value[0] if isinstance(value, list) and value else value
 
-    def _set_datetime(self, name: str, value: _dt.date | _dt.datetime) -> None:
+    def set_datetime(self, name: str, value: _dt.date | _dt.datetime) -> None:
+        """Set (replacing the first, or appending) a date/datetime property.
+
+        Wire form and parameters follow :func:`_wire_datetime`: naive
+        datetimes are floating, named zones keep a TZID parameter, UTC
+        uses the ``Z`` form, and plain dates get ``VALUE=DATE``.
+        """
         text, params = _wire_datetime(value)
         prop = self.component.prop(name)
         if prop is None:
@@ -129,6 +135,16 @@ class TypedComponent:
             prop.params = [
                 p for p in prop.params if p.name.upper() not in managed
             ] + params
+
+    def serialize(
+        self, *, line_ending: str = "\r\n", fold_width: int | None = 75
+    ) -> str:
+        """Serialize the wrapped component (alone) to wire format."""
+        from calcard._core import serialize as _serialize
+
+        return _serialize(
+            [self.component], line_ending=line_ending, fold_width=fold_width
+        )
 
     # -- shared iCalendar accessors -----------------------------------------
 
@@ -150,7 +166,7 @@ class _StartEndMixin(TypedComponent):
 
     @start.setter
     def start(self, value: _dt.date | _dt.datetime) -> None:
-        self._set_datetime("DTSTART", value)
+        self.set_datetime("DTSTART", value)
 
     @property
     def duration(self) -> _dt.timedelta | None:
@@ -183,7 +199,7 @@ class _StartEndMixin(TypedComponent):
 
     @end.setter
     def end(self, value: _dt.date | _dt.datetime) -> None:
-        self._set_datetime(self._END_NAME, value)
+        self.set_datetime(self._END_NAME, value)
 
     status = property(
         lambda self: self.text("STATUS"),
@@ -240,6 +256,24 @@ class Event(_StartEndMixin):
         lambda self: self.text("LOCATION"),
         lambda self, v: self.set_text("LOCATION", v),
     )
+    @property
+    def url(self) -> str | None:
+        return self.text("URL")
+
+    @url.setter
+    def url(self, value: str) -> None:
+        # URL is URI-valued, not TEXT: commas and semicolons are stored
+        # verbatim, never backslash-escaped.
+        if "\r" in value or "\n" in value:
+            raise ValueError("URL values cannot contain line breaks")
+        prop = self.component.prop("URL")
+        if prop is None:
+            self.component.children = self.component.children + [
+                Property("URL", value)
+            ]
+        else:
+            prop.value = value
+
     @property
     def alarms(self) -> list[Alarm]:
         return [Alarm(c, self._timezones) for c in self.component.comps("VALARM")]
@@ -323,6 +357,18 @@ class Calendar(TypedComponent):
     @property
     def timezones(self) -> list[Timezone]:
         return [Timezone(c) for c in self.component.comps("VTIMEZONE")]
+
+    def add_missing_timezones(self, **kwargs) -> list[Timezone]:
+        """Generate and insert a VTIMEZONE for every TZID referenced in
+        this calendar but not yet defined in it. See
+        :func:`calcard.timezones.add_missing_timezones`."""
+        from calcard.timezones import add_missing_timezones
+
+        added = add_missing_timezones(self.component, **kwargs)
+        if added:
+            # The TZID -> tzinfo map is rebuilt lazily on next access.
+            self._timezones = None
+        return [Timezone(c) for c in added]
 
 
 class Card(TypedComponent):

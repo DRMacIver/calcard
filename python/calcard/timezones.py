@@ -20,6 +20,7 @@ import re
 import warnings
 from bisect import bisect_right
 
+from calcard._core import Component, Property
 from calcard._core import expand_rrule as _expand_rrule
 from calcard._core import typed_value as _typed_value
 
@@ -216,6 +217,207 @@ def tzinfo_from_vtimezone(component) -> VTimezone:
         if comp.name.upper() in ("STANDARD", "DAYLIGHT")
     ]
     return VTimezone(tzid, observances)
+
+
+# -- VTIMEZONE generation (tzinfo -> component) -----------------------------
+
+
+def _format_offset(delta: _dt.timedelta) -> str:
+    total = round(delta.total_seconds())
+    sign = "-" if total < 0 else "+"
+    hours, rest = divmod(abs(total), 3600)
+    minutes, seconds = divmod(rest, 60)
+    if seconds:
+        return f"{sign}{hours:02d}{minutes:02d}{seconds:02d}"
+    return f"{sign}{hours:02d}{minutes:02d}"
+
+
+def _probe(tz: _dt.tzinfo, naive_utc: _dt.datetime):
+    """(utcoffset, dst, tzname) in force at a naive-UTC instant."""
+    local = naive_utc.replace(tzinfo=_dt.timezone.utc).astimezone(tz)
+    return (local.utcoffset(), local.dst() or _ZERO, local.tzname())
+
+
+def _transitions(tz: _dt.tzinfo, start: _dt.datetime, end: _dt.datetime):
+    """Offset/name transitions in the naive-UTC interval ``(start, end]``,
+    as ``(instant, state_before, state_after)`` tuples, found by daily
+    probing refined to the second (real zones never transition twice in
+    one day)."""
+    out = []
+    step = _dt.timedelta(days=1)
+    at = start
+    before = _probe(tz, at)
+    while at < end:
+        upto = min(at + step, end)
+        after = _probe(tz, upto)
+        if after != before:
+            lo, hi = at, upto
+            while hi - lo > _dt.timedelta(seconds=1):
+                mid = lo + _dt.timedelta(
+                    seconds=int((hi - lo).total_seconds() // 2)
+                )
+                if _probe(tz, mid) == before:
+                    lo = mid
+                else:
+                    hi = mid
+            out.append((hi, before, _probe(tz, hi)))
+        before = after
+        at = upto
+    return out
+
+
+def vtimezone_from_tzinfo(
+    tz: _dt.tzinfo,
+    *,
+    start: _dt.datetime,
+    end: _dt.datetime,
+    tzid: str | None = None,
+) -> Component:
+    """A VTIMEZONE component describing ``tz`` over ``[start, end]``.
+
+    ``start``/``end`` are instants (naive values are taken as UTC).
+    Transitions inside the window become STANDARD/DAYLIGHT observances —
+    grouped by offsets and name, extra onsets as RDATEs — with onset
+    wall times in the pre-transition (TZOFFSETFROM) frame as RFC 5545
+    requires; a window with no transitions yields a single fixed
+    STANDARD observance. No recurrence rules are inferred, so the
+    component describes exactly the covered window: callers must pick a
+    window spanning every datetime that will reference it (which is what
+    :func:`add_missing_timezones` automates).
+    """
+
+    def utc_naive(value: _dt.datetime) -> _dt.datetime:
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+
+    start, end = utc_naive(start), utc_naive(end)
+    if end < start:
+        raise ValueError("end must not precede start")
+    if tzid is None:
+        tzid = (
+            getattr(tz, "key", None) or getattr(tz, "zone", None) or str(tz)
+        )
+
+    # (offset_from, offset_to, name, is_daylight) -> onset wall times.
+    groups: dict[tuple, list[_dt.datetime]] = {}
+    for instant, before, after in _transitions(tz, start, end):
+        key = (before[0], after[0], after[2], after[1] > _ZERO)
+        groups.setdefault(key, []).append(instant + before[0])
+
+    observances = []
+    if not groups:
+        state = _probe(tz, start)
+        offset, name = state[0], state[2]
+        groups[(offset, offset, name, False)] = [start + offset]
+    for (offset_from, offset_to, name, is_daylight), onsets in groups.items():
+        children = [
+            Property("DTSTART", onsets[0].strftime("%Y%m%dT%H%M%S")),
+            Property("TZOFFSETFROM", _format_offset(offset_from)),
+            Property("TZOFFSETTO", _format_offset(offset_to)),
+        ]
+        if name:
+            children.append(Property("TZNAME", name))
+        if len(onsets) > 1:
+            children.append(
+                Property(
+                    "RDATE",
+                    ",".join(o.strftime("%Y%m%dT%H%M%S") for o in onsets[1:]),
+                )
+            )
+        observances.append(
+            Component("DAYLIGHT" if is_daylight else "STANDARD", children)
+        )
+    return Component("VTIMEZONE", [Property("TZID", tzid)] + observances)
+
+
+_WIRE_DATETIME_RE = re.compile(r"\d{8}T\d{6}")
+
+
+def add_missing_timezones(
+    calendar: Component, *, padding: _dt.timedelta = _dt.timedelta(days=366)
+) -> list[Component]:
+    """Insert a generated VTIMEZONE for every TZID parameter used in
+    ``calendar`` but not defined by one of its VTIMEZONE children.
+
+    TZIDs are resolved through the host's zoneinfo (an unresolvable one
+    warns :class:`TimezoneResolutionWarning` and is skipped — the
+    document alone must already define it for conformance). Each
+    generated component covers the span of the datetimes referencing its
+    zone, widened by ``padding`` on both sides so the offset in force at
+    the earliest reference is always derivable. New components are
+    inserted ahead of the first existing subcomponent; the inserted
+    components are returned (empty when nothing was missing).
+    """
+    existing = set()
+    for comp in calendar.comps("VTIMEZONE"):
+        prop = comp.prop("TZID")
+        if prop is not None:
+            existing.add(prop.value)
+
+    spans: dict[str, tuple[_dt.datetime, _dt.datetime]] = {}
+    order: list[str] = []
+
+    def visit(component: Component) -> None:
+        for prop in component.properties():
+            tzid = next(
+                (
+                    param.values[0]
+                    for param in prop.params
+                    if param.name.upper() == "TZID" and param.values
+                ),
+                None,
+            )
+            if tzid is None:
+                continue
+            for text in _WIRE_DATETIME_RE.findall(prop.value):
+                # The wall time stands in for the instant here; the
+                # padding dwarfs the offset error.
+                wall = _dt.datetime.strptime(text, "%Y%m%dT%H%M%S")
+                if tzid not in spans:
+                    order.append(tzid)
+                    spans[tzid] = (wall, wall)
+                else:
+                    lo, hi = spans[tzid]
+                    spans[tzid] = (min(lo, wall), max(hi, wall))
+        for child in component.components():
+            if child.name.upper() != "VTIMEZONE":
+                visit(child)
+
+    visit(calendar)
+
+    added = []
+    for tzid in order:
+        if tzid in existing:
+            continue
+        tz = None
+        try:
+            from zoneinfo import ZoneInfo
+
+            tz = ZoneInfo(tzid.lstrip("/"))
+        except Exception:  # noqa: BLE001 - any failure means "not a host zone"
+            warnings.warn(
+                f"cannot generate a VTIMEZONE for unknown TZID {tzid!r}",
+                TimezoneResolutionWarning,
+                stacklevel=2,
+            )
+            continue
+        lo, hi = spans[tzid]
+        added.append(
+            vtimezone_from_tzinfo(
+                tz, start=lo - padding, end=hi + padding, tzid=tzid
+            )
+        )
+    if added:
+        children = list(calendar.children)
+        first_comp = next(
+            (i for i, child in enumerate(children) if isinstance(child, Component)),
+            len(children),
+        )
+        calendar.children = (
+            children[:first_comp] + added + children[first_comp:]
+        )
+    return added
 
 
 def timezone_map(calendar_component) -> dict[str, _dt.tzinfo]:

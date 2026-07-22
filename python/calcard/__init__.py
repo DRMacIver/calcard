@@ -42,7 +42,12 @@ from calcard._core import serialize as _core_serialize
 from calcard._core import expand_rrule as _expand_rrule
 from calcard._core import to_jcal_json as _to_jcal_json
 from calcard.values import native_value
-from calcard.timezones import TimezoneResolutionWarning, tzinfo_from_vtimezone
+from calcard.timezones import (
+    TimezoneResolutionWarning,
+    add_missing_timezones,
+    tzinfo_from_vtimezone,
+    vtimezone_from_tzinfo,
+)
 from calcard.typed import (
     Alarm,
     Calendar,
@@ -73,7 +78,9 @@ __all__ = [
     "TimezoneResolutionWarning",
     "Todo",
     "TypedComponent",
+    "add_missing_timezones",
     "tzinfo_from_vtimezone",
+    "vtimezone_from_tzinfo",
     "escape_text",
     "expand_rrule",
     "from_jcal",

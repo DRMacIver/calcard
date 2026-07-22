@@ -23,6 +23,7 @@ Throughout: `import calcard`.
 | `prop.group` | `prop.group` (same idea) |
 | `cal.vevent.getrruleset()` | `event.occurrences(limit=...)` or `calcard.expand_rrule(rule, dtstart)` |
 | `vobject.iCalendar()` | `Component("VCALENDAR", [Property("VERSION", "2.0")])` |
+| `serialize()` inventing VTIMEZONEs for used TZIDs | explicit: `Calendar(...).add_missing_timezones()` (or `calcard.add_missing_timezones(component)`) before serializing |
 | behaviors / `transformToNative` | not needed: parsing is lossless, typed interpretation happens on access via `native_value` |
 | `ignoreUnreadable=True` | lenient parsing is the default; inspect `doc.repairs` |
 | validation errors at parse time | strict grammar: `parse(text, strict=True)`; value-level problems raise when the value is interpreted |
@@ -36,6 +37,11 @@ Notes:
   are joined, with a repair recorded) — losslessness is the contract.
 - py-vobject auto-inserted PRODID/VERSION when serializing behaviors;
   calcard serializes exactly what is in the model.
+- py-vobject also rewrote TZIDs to the zone's current abbreviation
+  (`Europe/Berlin` → `TZID:CET`), which is where its ambiguous-
+  abbreviation cache bugs (PST: Pacific or Philippine?) come from;
+  calcard keeps the IANA name from the datetime's tzinfo and holds no
+  global timezone state.
 
 ## Coming from icalendar
 
@@ -49,7 +55,7 @@ Notes:
 | `vDatetime`, `vDate`, `vDuration`, ... | plain Python types out of `native_value` (datetime/date/timedelta/...); wire text via `Property.value` |
 | `event["rrule"]` (`vRecur` dict) | `event.rrule` (rule text) and `event.occurrences()` |
 | `cal.to_jcal()` / `from_jcal` | `calcard.to_jcal(component)` / `calcard.from_jcal(data)` |
-| timezone generation (`add_missing_timezones`) | not provided; expansion uses zoneinfo directly (`expand_rrule` DST semantics) |
+| `cal.add_missing_timezones()` | `Calendar(...).add_missing_timezones()`, or `calcard.add_missing_timezones(component)` / `calcard.vtimezone_from_tzinfo(tz, start=..., end=...)` |
 | `icalendar.use_pytz()` | not applicable: aware datetimes use `zoneinfo` |
 
 ## History
