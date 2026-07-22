@@ -72,6 +72,8 @@ pub enum ErrorKind {
     InvalidUtf8,
     /// A folded continuation line at the very start of input.
     LeadingContinuation,
+    /// Component nesting exceeded [`crate::parse::ParseOptions::max_depth`].
+    TooDeeplyNested,
 }
 
 impl fmt::Display for ErrorKind {
@@ -100,6 +102,9 @@ impl fmt::Display for ErrorKind {
             ErrorKind::InvalidUtf8 => write!(f, "input is not valid UTF-8"),
             ErrorKind::LeadingContinuation => {
                 write!(f, "input starts with a folded continuation line")
+            }
+            ErrorKind::TooDeeplyNested => {
+                write!(f, "component nesting exceeds the configured depth limit")
             }
         }
     }

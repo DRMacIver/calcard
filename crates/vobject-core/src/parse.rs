@@ -16,21 +16,37 @@ pub enum Strictness {
     Lenient,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ParseOptions {
     pub strictness: Strictness,
+    /// Maximum component nesting depth. Real documents nest a handful of
+    /// levels; the cap exists so that adversarial inputs (fuzzer files nest
+    /// BEGIN 60k+ deep) cannot build trees whose recursive traversal or
+    /// destruction overflows the stack. In strict mode exceeding it is an
+    /// error; in lenient mode the offending BEGIN is dropped with a repair.
+    pub max_depth: usize,
+}
+
+pub const DEFAULT_MAX_DEPTH: usize = 512;
+
+impl Default for ParseOptions {
+    fn default() -> ParseOptions {
+        ParseOptions::lenient()
+    }
 }
 
 impl ParseOptions {
     pub fn strict() -> ParseOptions {
         ParseOptions {
             strictness: Strictness::Strict,
+            max_depth: DEFAULT_MAX_DEPTH,
         }
     }
 
     pub fn lenient() -> ParseOptions {
         ParseOptions {
             strictness: Strictness::Lenient,
+            max_depth: DEFAULT_MAX_DEPTH,
         }
     }
 }
@@ -81,6 +97,19 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
         if prop.name.eq_ignore_ascii_case("BEGIN") {
             match delimiter_name(&prop) {
                 Some(name) => {
+                    if stack.len() >= options.max_depth {
+                        if lenient {
+                            repairs.push(Repair {
+                                location: loc,
+                                kind: RepairKind::DroppedLine(ErrorKind::TooDeeplyNested),
+                            });
+                            continue;
+                        }
+                        return Err(ParseError {
+                            location: loc,
+                            kind: ErrorKind::TooDeeplyNested,
+                        });
+                    }
                     stack.push(Component::new(name));
                     continue;
                 }
@@ -420,6 +449,59 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, depth);
+    }
+
+    #[test]
+    fn pathological_nesting_does_not_overflow() {
+        // Fuzz corpus files nest BEGIN 60k+ deep; unbounded trees would
+        // overflow the stack in the recursive derived impls (Drop,
+        // PartialEq, Debug). Depth is capped instead.
+        let depth = 100_000;
+        let mut input = String::with_capacity(depth * 10);
+        for _ in 0..depth {
+            input.push_str("BEGIN:X\r\n");
+        }
+        input.push_str("SUMMARY:deep\r\n");
+        for _ in 0..depth {
+            input.push_str("END:X\r\n");
+        }
+
+        assert!(matches!(
+            strict(&input).unwrap_err().kind,
+            ErrorKind::TooDeeplyNested
+        ));
+
+        let parsed = lenient(&input);
+        assert_eq!(parsed.components.len(), 1);
+        assert!(parsed
+            .repairs
+            .iter()
+            .any(|r| matches!(r.kind, RepairKind::DroppedLine(ErrorKind::TooDeeplyNested))));
+        // The over-deep content still lands somewhere: the innermost kept
+        // component holds the SUMMARY.
+        let mut c = &parsed.components[0];
+        while let Some(inner) = c.comp("X") {
+            c = inner;
+        }
+        assert_eq!(c.prop("SUMMARY").unwrap().value, "deep");
+    }
+
+    #[test]
+    fn depth_limit_is_configurable() {
+        let input = "BEGIN:A\r\nBEGIN:B\r\nEND:B\r\nEND:A\r\n";
+        let options = ParseOptions {
+            max_depth: 1,
+            ..ParseOptions::strict()
+        };
+        assert!(matches!(
+            parse(input, &options).unwrap_err().kind,
+            ErrorKind::TooDeeplyNested
+        ));
+        let options = ParseOptions {
+            max_depth: 2,
+            ..ParseOptions::strict()
+        };
+        assert!(parse(input, &options).is_ok());
     }
 
     #[test]
