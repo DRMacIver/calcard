@@ -167,12 +167,16 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
 /// The component name carried by a BEGIN/END line, if it is well formed
 /// (non-empty value, no parameters, no group).
 fn delimiter_name(prop: &Property) -> Option<String> {
-    if prop.value.is_empty() || !prop.params.is_empty() {
+    if !prop.params.is_empty() {
+        return None;
+    }
+    let name = prop.value.trim();
+    if name.is_empty() {
         return None;
     }
     // A group on BEGIN (e.g. sabre tests `home.begin:vcard`) is unusual but
     // harmless; we ignore the group rather than reject.
-    Some(prop.value.trim().to_string())
+    Some(name.to_string())
 }
 
 fn attach(stack: &mut [Component], roots: &mut Vec<Component>, comp: Component) {
@@ -423,6 +427,17 @@ mod tests {
         let input = "BEGIN:VCARD\r\nNOTE:hello\r\n  world\r\nEND:VCARD\r\n";
         let parsed = strict(input).unwrap();
         assert_eq!(parsed.components[0].prop("NOTE").unwrap().value, "hello world");
+    }
+
+    #[test]
+    fn begin_with_whitespace_only_name_is_malformed() {
+        // The name is trimmed, so a whitespace-only BEGIN value is as
+        // malformed as an empty one; it must not create a component with an
+        // empty name (which could not be re-serialized).
+        let input = "BEGIN:  \r\nEND:  \r\n";
+        assert!(strict(input).is_err());
+        let parsed = lenient(input);
+        assert!(parsed.components.is_empty());
     }
 
     #[test]

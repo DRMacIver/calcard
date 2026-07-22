@@ -95,12 +95,15 @@ impl<'a, 'r> LineParser<'a, 'r> {
             None => (None, name_section),
         };
 
-        let name_ok = if self.lenient() {
-            is_lenient_name(name) && group.map_or(true, is_lenient_name)
-        } else {
-            is_strict_name(name) && group.map_or(true, is_strict_name)
-        };
-        if !name_ok {
+        let strict_ok = is_strict_name(name) && group.map_or(true, is_strict_name);
+        if self.lenient() {
+            if !(is_lenient_name(name) && group.map_or(true, is_lenient_name)) {
+                return Err(self.err(ErrorKind::InvalidName(name_section.to_string())));
+            }
+            if !strict_ok {
+                self.repair(RepairKind::NonstandardName(name_section.to_string()));
+            }
+        } else if !strict_ok {
             return Err(self.err(ErrorKind::InvalidName(name_section.to_string())));
         }
 
@@ -162,12 +165,14 @@ impl<'a, 'r> LineParser<'a, 'r> {
             None => return Err(self.err(ErrorKind::MissingColon)),
         }
 
-        let valid_name = if self.lenient() {
-            is_lenient_name(name)
-        } else {
-            is_strict_name(name)
-        };
-        if !valid_name {
+        if self.lenient() {
+            if !is_lenient_name(name) {
+                return Err(self.err(ErrorKind::InvalidParamName(name.to_string())));
+            }
+            if !is_strict_name(name) {
+                self.repair(RepairKind::NonstandardName(name.to_string()));
+            }
+        } else if !is_strict_name(name) {
             return Err(self.err(ErrorKind::InvalidParamName(name.to_string())));
         }
 
@@ -396,7 +401,11 @@ mod tests {
     fn lenient_accepts_underscore_names() {
         let (p, repairs) = lenient("X_UNDER:value");
         assert_eq!(p.name, "X_UNDER");
-        assert!(repairs.is_empty());
+        // Nonstandard names are kept but recorded, preserving the invariant
+        // that zero repairs means the input was strictly conformant.
+        assert!(repairs
+            .iter()
+            .any(|r| matches!(r.kind, RepairKind::NonstandardName(_))));
     }
 
     #[test]

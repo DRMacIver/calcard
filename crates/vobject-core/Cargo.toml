@@ -9,3 +9,4 @@ repository.workspace = true
 [dependencies]
 
 [dev-dependencies]
+hegeltest = "0.28.2"

@@ -151,6 +151,9 @@ pub enum RepairKind {
     /// A parameter without '=' (vCard 2.1 style, e.g. TEL;HOME:...) was kept
     /// as a value-less parameter.
     BareParameter(String),
+    /// A property, group, or parameter name outside the strict grammar
+    /// (e.g. containing '_' or non-ASCII) was kept as-is.
+    NonstandardName(String),
     /// An unterminated quoted parameter value was closed at end of line.
     ClosedUnterminatedQuote,
     /// A double quote appeared inside an unquoted parameter value and was kept.
@@ -187,6 +190,9 @@ impl fmt::Display for RepairKind {
             }
             RepairKind::BareParameter(n) => {
                 write!(f, "kept bare parameter {n} (vCard 2.1 style)")
+            }
+            RepairKind::NonstandardName(n) => {
+                write!(f, "kept nonstandard name {n:?}")
             }
             RepairKind::ClosedUnterminatedQuote => {
                 write!(f, "closed unterminated quoted parameter value at end of line")
