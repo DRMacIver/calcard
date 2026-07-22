@@ -61,7 +61,7 @@ def test_from_jcal_value_param():
 
 
 def test_from_jcal_rejects_garbage():
-    for bad in ["not json", "{}", "42", "[]", '["vcalendar"]', '[7, [], []]']:
+    for bad in ["not json", "{}", "42", "[]", '["vcalendar"]', "[7, [], []]"]:
         with pytest.raises(calcard.ParseError):
             calcard.from_jcal(bad)
 

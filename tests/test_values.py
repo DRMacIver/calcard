@@ -62,9 +62,7 @@ def test_binary():
 
 
 def test_time_values():
-    assert native_value(prop_of("X-T;VALUE=TIME:123045")) == [
-        dt.time(12, 30, 45)
-    ]
+    assert native_value(prop_of("X-T;VALUE=TIME:123045")) == [dt.time(12, 30, 45)]
     assert native_value(prop_of("X-T;VALUE=TIME:123045Z")) == [
         dt.time(12, 30, 45, tzinfo=dt.timezone.utc)
     ]
@@ -91,9 +89,7 @@ def test_period_start_duration():
 
 
 def test_period_with_tzid():
-    got = native_value(
-        prop_of("FREEBUSY;TZID=Europe/London:19970308T160000/PT1H")
-    )
+    got = native_value(prop_of("FREEBUSY;TZID=Europe/London:19970308T160000/PT1H"))
     assert got == [
         (
             dt.datetime(1997, 3, 8, 16, 0, tzinfo=ZoneInfo("Europe/London")),
@@ -118,6 +114,16 @@ def test_unresolvable_tzid_warns_and_yields_naive_datetime():
     assert got[0].tzinfo is None
 
 
+def test_tzid_on_non_datetime_property_does_not_warn():
+    # TZID is only consulted for datetime-bearing kinds; a text property
+    # carrying a bogus TZID must not emit a resolution warning.
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert native_value(prop_of("SUMMARY;TZID=Not/AZone:hello")) == "hello"
+
+
 def test_date_shaped_value_in_datetime_position():
     # A DATE-TIME-typed property whose value is date-shaped comes back as
     # a date (the tuple has three fields; _to_datetime keeps it a date).
@@ -125,9 +131,7 @@ def test_date_shaped_value_in_datetime_position():
 
 
 def test_expand_rrule():
-    got = calcard.expand_rrule(
-        "FREQ=WEEKLY;COUNT=3", dt.datetime(2026, 7, 22, 9, 0, 0)
-    )
+    got = calcard.expand_rrule("FREQ=WEEKLY;COUNT=3", dt.datetime(2026, 7, 22, 9, 0, 0))
     assert got == [
         dt.datetime(2026, 7, 22, 9, 0),
         dt.datetime(2026, 7, 29, 9, 0),

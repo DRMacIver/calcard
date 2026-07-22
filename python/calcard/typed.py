@@ -43,9 +43,7 @@ def _wire_datetime(value: _dt.date | _dt.datetime) -> tuple[str, list[Param]]:
     if isinstance(value, _dt.datetime):
         if value.tzinfo is None:
             return value.strftime("%Y%m%dT%H%M%S"), []
-        key = getattr(value.tzinfo, "key", None) or getattr(
-            value.tzinfo, "zone", None
-        )
+        key = getattr(value.tzinfo, "key", None) or getattr(value.tzinfo, "zone", None)
         if key and key != "UTC":
             return value.strftime("%Y%m%dT%H%M%S"), [Param("TZID", [key])]
         if value.utcoffset() == _dt.timedelta(0):
@@ -63,9 +61,7 @@ class TypedComponent:
 
     def __init__(self, component: Component, timezones: dict | None = None):
         if self.NAME and not component.name.upper() == self.NAME:
-            raise ValueError(
-                f"expected a {self.NAME} component, got {component.name}"
-            )
+            raise ValueError(f"expected a {self.NAME} component, got {component.name}")
         self.component = component
         # TZID -> tzinfo map from the enclosing document's VTIMEZONEs;
         # supplied by the parent Calendar view, or built lazily when this
@@ -178,6 +174,12 @@ class _StartEndMixin(TypedComponent):
             return None
         if isinstance(start, _dt.datetime) != isinstance(end, _dt.datetime):
             return None
+        if isinstance(start, _dt.datetime) and (start.tzinfo is None) != (
+            end.tzinfo is None
+        ):
+            # One end degraded to naive (e.g. unresolvable TZID): the
+            # elapsed time is unknowable, not a TypeError.
+            return None
         return end - start
 
     @property
@@ -256,6 +258,7 @@ class Event(_StartEndMixin):
         lambda self: self.text("LOCATION"),
         lambda self, v: self.set_text("LOCATION", v),
     )
+
     @property
     def url(self) -> str | None:
         return self.text("URL")
@@ -268,9 +271,7 @@ class Event(_StartEndMixin):
             raise ValueError("URL values cannot contain line breaks")
         prop = self.component.prop("URL")
         if prop is None:
-            self.component.children = self.component.children + [
-                Property("URL", value)
-            ]
+            self.component.children = self.component.children + [Property("URL", value)]
         else:
             prop.value = value
 
@@ -394,15 +395,11 @@ class Card(TypedComponent):
 
     @property
     def emails(self) -> list[str]:
-        return [
-            native_value(p, self.DIALECT) for p in self.component.props("EMAIL")
-        ]
+        return [native_value(p, self.DIALECT) for p in self.component.props("EMAIL")]
 
     @property
     def tels(self) -> list[str]:
-        return [
-            native_value(p, self.DIALECT) for p in self.component.props("TEL")
-        ]
+        return [native_value(p, self.DIALECT) for p in self.component.props("TEL")]
 
 
 _BY_NAME = {

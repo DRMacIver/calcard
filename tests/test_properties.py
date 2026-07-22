@@ -23,7 +23,7 @@ structural_lines = st.sampled_from(
         "BEGIN:VCALENDAR",
         "END:VCALENDAR",
         "VERSION:2.0",
-        "SUMMARY;TZID=\"a,b\";X=1,2:hello\\n world",
+        'SUMMARY;TZID="a,b";X=1,2:hello\\n world',
         "TEL;HOME;VOICE:+441234",
         "NOTE;ENCODING=QUOTED-PRINTABLE:soft=",
         " folded continuation",
@@ -36,7 +36,7 @@ documentish = st.lists(
 ).flatmap(
     lambda lines: st.lists(
         st.sampled_from(["\r\n", "\n"]), min_size=len(lines), max_size=len(lines)
-    ).map(lambda endings: "".join(l + e for l, e in zip(lines, endings)))
+    ).map(lambda endings: "".join(line + e for line, e in zip(lines, endings)))
 )
 
 any_input = st.one_of(st.text(max_size=400), documentish)
@@ -60,7 +60,8 @@ def _qp_hazard(components):
             if "=" not in p.value:
                 continue
             prefix = " ".join(
-                [p.name] + [v for param in p.params for v in [param.name, *param.values]]
+                [p.name]
+                + [v for param in p.params for v in [param.name, *param.values]]
             )
             if "QUOTED-PRINTABLE" in prefix.upper():
                 return True
@@ -69,6 +70,7 @@ def _qp_hazard(components):
 
 # ---------------------------------------------------------------------------
 # Properties
+
 
 @given(any_input)
 @settings(max_examples=300)
@@ -144,8 +146,7 @@ def test_bytes_input_is_total(data):
 # Typed datetime setters
 
 _EVENT_SHELL = (
-    "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:x\r\n"
-    "END:VEVENT\r\nEND:VCALENDAR\r\n"
+    "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:x\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 )
 
 _naive_datetimes = st.datetimes(
@@ -167,9 +168,7 @@ _named_zones = st.sampled_from(
     ]
 ).map(ZoneInfo)
 
-_tzinfos = st.one_of(
-    st.none(), st.just(dt.timezone.utc), _fixed_offsets, _named_zones
-)
+_tzinfos = st.one_of(st.none(), st.just(dt.timezone.utc), _fixed_offsets, _named_zones)
 
 
 @st.composite
@@ -208,9 +207,7 @@ def test_typed_datetime_setter_preserves_the_moment(value):
 
 _extra_params = st.lists(
     st.tuples(
-        st.sampled_from(
-            ["X-FOO", "X-BAR", "X-RELATED", "LANGUAGE", "X-APPLE-TRAVEL"]
-        ),
+        st.sampled_from(["X-FOO", "X-BAR", "X-RELATED", "LANGUAGE", "X-APPLE-TRAVEL"]),
         st.lists(
             st.text(
                 alphabet="abcdefghijklmnopqrstuvwxyz0123456789-",

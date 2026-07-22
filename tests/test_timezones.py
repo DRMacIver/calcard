@@ -13,13 +13,15 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given, settings, strategies as st
 
 import calcard
 from calcard import TimezoneResolutionWarning
 from calcard.timezones import tzinfo_from_vtimezone
 
-FIXTURE_ZONES = Path(__file__).parent.parent / "conformance" / "fixtures" / "libical" / "timezones"
+FIXTURE_ZONES = (
+    Path(__file__).parent.parent / "conformance" / "fixtures" / "libical" / "timezones"
+)
 
 # A custom (non-Olson) TZID with US-Eastern-style rules.
 FAKE_EASTERN = (
@@ -187,6 +189,9 @@ assert len(ZONES) == 8
     ),
     fold=st.integers(0, 1),
 )
+# The first example against each zone pays the one-off cost of building
+# the full transition table, which can exceed the default deadline.
+@settings(deadline=None)
 def test_vtimezone_interpretation_matches_zoneinfo(name, vtz, location, when, fold):
     ours = tzinfo_from_vtimezone(vtz)
     theirs = ZoneInfo(location)
@@ -204,6 +209,7 @@ def test_vtimezone_interpretation_matches_zoneinfo(name, vtz, location, when, fo
         timezones=st.just(dt.timezone.utc),
     )
 )
+@settings(deadline=None)
 def test_vtimezone_fromutc_matches_zoneinfo(name, vtz, location, when):
     ours = when.astimezone(tzinfo_from_vtimezone(vtz))
     theirs = when.astimezone(ZoneInfo(location))

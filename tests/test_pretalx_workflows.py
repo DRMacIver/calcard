@@ -126,9 +126,7 @@ def get_slots_ical(event_slug, slots, prodid_suffix=None, netloc=NETLOC):
 
 
 def get_speaker_ical(event_slug, speaker_code, slots):
-    return get_slots_ical(
-        event_slug, slots, prodid_suffix=f"speaker//{speaker_code}"
-    )
+    return get_slots_ical(event_slug, slots, prodid_suffix=f"speaker//{speaker_code}")
 
 
 def get_submission_ical(event_slug, submission_code, slots):
@@ -149,7 +147,9 @@ def get_slot_ical(slot):
 class Submission:
     title: str = "Continuous Deployment of Small Satellites"
     display_speaker_names: str = "Ada Lovelace, Grace Hopper"
-    abstract: str = "A talk in two parts.\n\nWith a blank line, ümlauts, and 100% emoji: \N{ROCKET}"
+    abstract: str = (
+        "A talk in two parts.\n\nWith a blank line, ümlauts, and 100% emoji: \N{ROCKET}"
+    )
     code: str = "ABC123"
     url: str = "https://pretalx.example.com/democon/talk/ABC123/"
 
@@ -203,10 +203,7 @@ def test_build_slot_vevent_appends_vevent():
     assert vevent.end == slot.local_end
     assert vevent.description == slot.submission.abstract
     assert vevent.url == slot.submission.url
-    assert (
-        vevent.uid
-        == f"pretalx-democon-{slot.submission.code}@{NETLOC}"
-    )
+    assert vevent.uid == f"pretalx-democon-{slot.submission.code}@{NETLOC}"
 
 
 @pytest.mark.parametrize("missing", ["start", "end", "room", "submission"])
@@ -378,7 +375,10 @@ def test_full_semantic_round_trip():
     cal.add_missing_timezones()
 
     (vevent,) = roundtrip(cal).events
-    assert vevent.summary == f"{slot.submission.title} - {slot.submission.display_speaker_names}"
+    assert (
+        vevent.summary
+        == f"{slot.submission.title} - {slot.submission.display_speaker_names}"
+    )
     assert vevent.description == slot.submission.abstract
     assert vevent.location == slot.room
     assert vevent.url == slot.submission.url
@@ -421,9 +421,7 @@ def test_export_as_bytes_attachment():
 def test_url_with_reserved_characters_survives_unescaped():
     """URL is a URI-valued property: commas and semicolons in it must not
     be TEXT-escaped, or consumers double-unescape them."""
-    slot = Slot(
-        submission=Submission(url="https://pretalx.example.com/t/?a=1,2;b=3")
-    )
+    slot = Slot(submission=Submission(url="https://pretalx.example.com/t/?a=1,2;b=3"))
     cal = get_slot_ical(slot)
     assert "URL:https://pretalx.example.com/t/?a=1,2;b=3" in cal.serialize()
     (vevent,) = roundtrip(cal).events
@@ -441,8 +439,7 @@ def test_long_summary_folds_and_unfolds():
         submission=Submission(
             title="A very long talk title that has to be folded "
             + "beyond seventy-five octets " * 5,
-            abstract="Ümläüts and emoji \N{ROCKET} force octet-aware folding "
-            * 10,
+            abstract="Ümläüts and emoji \N{ROCKET} force octet-aware folding " * 10,
         )
     )
     cal = get_slot_ical(slot)
@@ -451,7 +448,10 @@ def test_long_summary_folds_and_unfolds():
         assert len(line.encode()) <= 75
     (vevent,) = roundtrip(cal).events
     assert vevent.summary.startswith(slot.submission.title[:40])
-    assert vevent.summary == f"{slot.submission.title} - {slot.submission.display_speaker_names}"
+    assert (
+        vevent.summary
+        == f"{slot.submission.title} - {slot.submission.display_speaker_names}"
+    )
     assert vevent.description == slot.submission.abstract
 
 
@@ -465,9 +465,7 @@ def test_empty_abstract_round_trips_as_empty_description():
 
 
 TEXT_CONTENT = st.text(
-    alphabet=st.characters(
-        blacklist_categories=("Cs", "Cc"), blacklist_characters="﻿"
-    ),
+    alphabet=st.characters(blacklist_categories=("Cs", "Cc"), blacklist_characters="﻿"),
     max_size=200,
 ).flatmap(
     lambda s: st.sampled_from(["", "\n", "\t"]).map(lambda sep: s + sep + s[::-1])
@@ -539,9 +537,9 @@ def test_icalendar_reads_the_export():
     # The generated VTIMEZONE is one icalendar can interpret.
     (vtz,) = parsed.walk("VTIMEZONE")
     assert str(vtz["TZID"]) == "Europe/Berlin"
-    assert vtz.to_tz().utcoffset(
-        dt.datetime(2026, 7, 22, 12, 0)
-    ) == dt.timedelta(hours=2)
+    assert vtz.to_tz().utcoffset(dt.datetime(2026, 7, 22, 12, 0)) == dt.timedelta(
+        hours=2
+    )
 
 
 # --------------------------------------------------------------------------
@@ -552,11 +550,22 @@ def test_icalendar_reads_the_export():
 def test_add_missing_timezones_inserts_before_events():
     _, cal = _sample_calendar()
     kinds = [
-        child.name
-        for child in cal.component.children
-        if isinstance(child, Component)
+        child.name for child in cal.component.children if isinstance(child, Component)
     ]
     assert kinds == ["VTIMEZONE", "VEVENT"]
+
+
+def test_all_daylight_window_is_labeled_daylight():
+    # A window with no transitions that sits entirely inside DST must be
+    # emitted as a DAYLIGHT observance, not STANDARD.
+    vtz = vtimezone_from_tzinfo(
+        ZoneInfo("America/New_York"),
+        start=dt.datetime(2026, 6, 1),
+        end=dt.datetime(2026, 7, 1),
+    )
+    (obs,) = vtz.components()
+    assert obs.name == "DAYLIGHT"
+    assert obs.prop("TZNAME").value == "EDT"
 
 
 def test_add_missing_timezones_is_idempotent():
@@ -712,9 +721,10 @@ def test_vtimezone_generation_covers_event_span_with_padding():
         dt.datetime(2026, 6, 1, 12, 0),
     ):
         instant = probe_utc.replace(tzinfo=dt.timezone.utc)
-        assert instant.astimezone(built).utcoffset() == instant.astimezone(
-            BERLIN
-        ).utcoffset()
+        assert (
+            instant.astimezone(built).utcoffset()
+            == instant.astimezone(BERLIN).utcoffset()
+        )
 
 
 # --------------------------------------------------------------------------

@@ -104,6 +104,7 @@ event_models = st.fixed_dictionaries(
 # ---------------------------------------------------------------------------
 # Helpers
 
+
 def calcard_wire(model) -> str:
     """Serialize an event model with calcard."""
     cal = Component("VCALENDAR")
@@ -129,9 +130,7 @@ def calcard_wire(model) -> str:
             )
         ]
     if model["sequence"] is not None:
-        ev.children = ev.children + [
-            Property("SEQUENCE", str(model["sequence"]))
-        ]
+        ev.children = ev.children + [Property("SEQUENCE", str(model["sequence"]))]
     if model["start_end"] is not None:
         _kind, start, end = model["start_end"]
         view.start = start
@@ -188,6 +187,7 @@ def assert_same_point(kind, actual, expected):
 # ---------------------------------------------------------------------------
 # calcard -> icalendar
 
+
 @given(event_models)
 @settings(deadline=None)
 def test_calcard_output_read_by_icalendar(model):
@@ -221,6 +221,7 @@ def test_calcard_output_read_by_icalendar(model):
 
 # ---------------------------------------------------------------------------
 # icalendar -> calcard
+
 
 @given(event_models)
 @settings(deadline=None)
@@ -285,6 +286,7 @@ def test_utc_zoneinfo_still_serializes_as_z_form():
 
 # ---------------------------------------------------------------------------
 # Text round-trip through SUMMARY, both directions
+
 
 @given(ical_text)
 @settings(deadline=None)

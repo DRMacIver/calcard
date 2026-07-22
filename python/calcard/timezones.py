@@ -144,17 +144,13 @@ class VTimezone(_dt.tzinfo):
         first_obs = transitions[0][1]
         self._initial = (first_obs.offset_from, _ZERO, None)
         self._utc = [utc for utc, _ in transitions]
-        self._after = [
-            (obs.offset_to, obs.dst, obs.name) for _, obs in transitions
-        ]
+        self._after = [(obs.offset_to, obs.dst, obs.name) for _, obs in transitions]
         before = [self._initial[0]] + [entry[0] for entry in self._after[:-1]]
         self._wall_fold0 = [
-            utc + max(b, a[0])
-            for utc, b, a in zip(self._utc, before, self._after)
+            utc + max(b, a[0]) for utc, b, a in zip(self._utc, before, self._after)
         ]
         self._wall_fold1 = [
-            utc + min(b, a[0])
-            for utc, b, a in zip(self._utc, before, self._after)
+            utc + min(b, a[0]) for utc, b, a in zip(self._utc, before, self._after)
         ]
         self._before = before
 
@@ -253,9 +249,7 @@ def _transitions(tz: _dt.tzinfo, start: _dt.datetime, end: _dt.datetime):
         if after != before:
             lo, hi = at, upto
             while hi - lo > _dt.timedelta(seconds=1):
-                mid = lo + _dt.timedelta(
-                    seconds=int((hi - lo).total_seconds() // 2)
-                )
+                mid = lo + _dt.timedelta(seconds=int((hi - lo).total_seconds() // 2))
                 if _probe(tz, mid) == before:
                     lo = mid
                 else:
@@ -295,9 +289,7 @@ def vtimezone_from_tzinfo(
     if end < start:
         raise ValueError("end must not precede start")
     if tzid is None:
-        tzid = (
-            getattr(tz, "key", None) or getattr(tz, "zone", None) or str(tz)
-        )
+        tzid = getattr(tz, "key", None) or getattr(tz, "zone", None) or str(tz)
 
     # (offset_from, offset_to, name, is_daylight) -> onset wall times.
     groups: dict[tuple, list[_dt.datetime]] = {}
@@ -307,9 +299,8 @@ def vtimezone_from_tzinfo(
 
     observances = []
     if not groups:
-        state = _probe(tz, start)
-        offset, name = state[0], state[2]
-        groups[(offset, offset, name, False)] = [start + offset]
+        offset, dst, name = _probe(tz, start)
+        groups[(offset, offset, name, dst > _ZERO)] = [start + offset]
     for (offset_from, offset_to, name, is_daylight), onsets in groups.items():
         children = [
             Property("DTSTART", onsets[0].strftime("%Y%m%dT%H%M%S")),
@@ -404,9 +395,7 @@ def add_missing_timezones(
             continue
         lo, hi = spans[tzid]
         added.append(
-            vtimezone_from_tzinfo(
-                tz, start=lo - padding, end=hi + padding, tzid=tzid
-            )
+            vtimezone_from_tzinfo(tz, start=lo - padding, end=hi + padding, tzid=tzid)
         )
     if added:
         children = list(calendar.children)
@@ -414,9 +403,7 @@ def add_missing_timezones(
             (i for i, child in enumerate(children) if isinstance(child, Component)),
             len(children),
         )
-        calendar.children = (
-            children[:first_comp] + added + children[first_comp:]
-        )
+        calendar.children = children[:first_comp] + added + children[first_comp:]
     return added
 
 

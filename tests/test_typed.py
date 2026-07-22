@@ -147,9 +147,7 @@ def test_fixed_offset_datetime_preserves_instant():
 def test_negative_fixed_offset_datetime_preserves_instant():
     doc = calcard.parse(CAL)
     event = doc.calendars[0].events[0]
-    value = dt.datetime(
-        2026, 1, 2, 1, 30, tzinfo=dt.timezone(dt.timedelta(hours=-7))
-    )
+    value = dt.datetime(2026, 1, 2, 1, 30, tzinfo=dt.timezone(dt.timedelta(hours=-7)))
     event.end = value
     assert event.end == value
     assert "DTEND:20260102T083000Z\r\n" in doc.serialize()
@@ -162,9 +160,7 @@ def test_todo_due_setter_fixed_offset_round_trips():
     )
     doc = calcard.parse(text)
     todo = doc.calendars[0].todos[0]
-    value = dt.datetime(
-        2026, 8, 1, 12, 0, tzinfo=dt.timezone(dt.timedelta(hours=3))
-    )
+    value = dt.datetime(2026, 8, 1, 12, 0, tzinfo=dt.timezone(dt.timedelta(hours=3)))
     todo.due = value
     assert todo.due == value
     again = calcard.parse(doc.serialize(), strict=True)
@@ -275,10 +271,22 @@ def test_duration_none_when_start_or_end_missing():
 
 
 def test_duration_none_for_mixed_date_and_datetime():
-    event = _event_of(
-        "DTSTART;VALUE=DATE:20260722\r\nDTEND:20260723T100000Z\r\n"
-    )
+    event = _event_of("DTSTART;VALUE=DATE:20260722\r\nDTEND:20260723T100000Z\r\n")
     assert event.duration is None
+
+
+def test_duration_none_for_mixed_naive_and_aware():
+    # An unresolvable TZID degrades the start to naive (with a warning);
+    # duration must degrade to None rather than raise on the subtraction.
+    import pytest
+
+    from calcard import TimezoneResolutionWarning
+
+    event = _event_of(
+        "DTSTART;TZID=Not/AZone:20260722T090000\r\nDTEND:20260722T100000Z\r\n"
+    )
+    with pytest.warns(TimezoneResolutionWarning):
+        assert event.duration is None
 
 
 def test_end_none_without_start():

@@ -102,7 +102,9 @@ def native_value(
     kept, the unresolvable zone is dropped).
     """
     kind, payload = _typed_value(prop, dialect)
-    tz = _tzinfo_for(prop, timezones)
+    # Only datetime-bearing kinds consult TZID; resolving it lazily keeps
+    # a stray TZID on e.g. a TEXT property from warning about resolution.
+    tz = _tzinfo_for(prop, timezones) if kind in ("datetime", "period") else None
 
     if kind == "text":
         return payload[0] if len(payload) == 1 else payload

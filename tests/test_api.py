@@ -39,6 +39,14 @@ def test_serialize_accepts_document_component_and_list():
     assert calcard.serialize([comp, comp]) == SIMPLE + SIMPLE
 
 
+def test_serialize_and_conversions_accept_typed_views():
+    doc = calcard.parse(SIMPLE)
+    cal = doc.calendars[0]
+    assert calcard.serialize(cal) == SIMPLE
+    assert calcard.to_jcal(cal) == calcard.to_jcal(cal.component)
+    assert calcard.to_xcal(cal) == calcard.to_xcal(cal.component)
+
+
 def test_parse_one():
     comp = calcard.parse_one(SIMPLE)
     assert comp.name == "VCALENDAR"

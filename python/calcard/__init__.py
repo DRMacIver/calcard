@@ -98,7 +98,13 @@ __all__ = [
 
 __version__ = "0.1.0"
 
+# Parse errors raised at a specific source line carry that line number;
+# the class-level default keeps ``.line`` present (as None) on errors with
+# no single line at fault, so callers can always read it.
+ParseError.line = None
+
 DEFAULT_MAX_DEPTH = 512
+
 
 @dataclass
 class Document:
@@ -109,7 +115,9 @@ class Document:
     components: list[Component] = field(default_factory=list)
     repairs: list[Repair] = field(default_factory=list)
 
-    def serialize(self, *, line_ending: str = "\r\n", fold_width: int | None = 75) -> str:
+    def serialize(
+        self, *, line_ending: str = "\r\n", fold_width: int | None = 75
+    ) -> str:
         return _core_serialize(
             self.components, line_ending=line_ending, fold_width=fold_width
         )
@@ -147,6 +155,10 @@ def parse(
     Byte input is decoded as UTF-8 (a BOM is tolerated). In lenient mode
     non-UTF-8 legacy data falls back to Latin-1 — byte-preserving — with a
     :class:`Repair` recorded; in strict mode it is a :class:`ParseError`.
+
+    ``max_depth`` bounds component nesting (real documents nest a handful
+    of levels). It may be lowered, but not raised above the 512 default:
+    deeper trees could not be safely serialized or compared afterwards.
     """
     if isinstance(source, bytes):
         components, repairs = _core_parse_bytes(
@@ -169,13 +181,10 @@ def parse_one(
     return it."""
     doc = parse(source, strict=strict, max_depth=max_depth)
     if len(doc.components) != 1:
-        err = ParseError(
+        # No single line is at fault, so .line stays the class default None.
+        raise ParseError(
             f"expected exactly one top-level component, found {len(doc.components)}"
         )
-        # Core-raised ParseErrors carry a .line attribute; keep the
-        # synthetic error uniform (no single line is at fault).
-        err.line = None
-        raise err
     return doc.components[0]
 
 
@@ -250,7 +259,12 @@ def expand_rrule(
             continue
         y, mo, d, h, mi, s, utc = t
         value = _dt.datetime(
-            y, mo, d, h, mi, min(s, 59),
+            y,
+            mo,
+            d,
+            h,
+            mi,
+            min(s, 59),
             tzinfo=_dt.timezone.utc if utc else None,
         )
         if tz is not None:
@@ -258,28 +272,28 @@ def expand_rrule(
             # times; the round-trip through UTC normalizes gap times onto
             # the real clock (astimezone directly to the same tz is a
             # no-op fast path in CPython).
-            value = (
-                value.replace(tzinfo=tz)
-                .astimezone(_dt.timezone.utc)
-                .astimezone(tz)
-            )
+            value = value.replace(tzinfo=tz).astimezone(_dt.timezone.utc).astimezone(tz)
         out.append(value)
     return out
 
 
-def to_jcal(component: Component, *, dialect: str | None = None):
+def to_jcal(component: Component | TypedComponent, *, dialect: str | None = None):
     """The jCal (RFC 7265) / jCard (RFC 7095) representation of a
-    component, as Python data structures."""
+    component (or typed view of one), as Python data structures."""
     import json
 
+    if isinstance(component, TypedComponent):
+        component = component.component
     return json.loads(_to_jcal_json(component, dialect))
 
 
 def to_xcal(value) -> str:
     """The xCal (RFC 6321) / xCard (RFC 6351) XML representation of a
-    Document, Component, or list of Components."""
+    Document, Component, typed view, or list of Components."""
     from calcard._core import to_xcal_xml
 
+    if isinstance(value, TypedComponent):
+        value = value.component
     if isinstance(value, Document):
         components = value.components
     elif isinstance(value, Component):
@@ -310,12 +324,15 @@ def from_xcal(xml: str) -> Document:
 
 
 def serialize(
-    value: Document | Component | list[Component],
+    value: Document | Component | TypedComponent | list[Component],
     *,
     line_ending: str = "\r\n",
     fold_width: int | None = 75,
 ) -> str:
-    """Serialize a Document, a single Component, or a list of Components."""
+    """Serialize a Document, a single Component (or typed view of one), or
+    a list of Components."""
+    if isinstance(value, TypedComponent):
+        value = value.component
     if isinstance(value, Document):
         components = value.components
     elif isinstance(value, Component):

@@ -52,9 +52,7 @@ def test_quoted_param_with_colon():
         "Conference - - Las Vegas, NV, USA"
     )
     assert params_of(prop) == {"ALTREP": ["http://www.wiz.org"]}
-    assert prop.value == (
-        "The Fall 98 Wild Wizards Conference - - Las Vegas, NV, USA"
-    )
+    assert prop.value == ("The Fall 98 Wild Wizards Conference - - Las Vegas, NV, USA")
 
 
 def test_bare_parameters_vcard21_style():
@@ -152,7 +150,9 @@ def test_standard_document_import():
     (cal,) = doc.calendars
     (event,) = cal.events
     assert event.summary == "Coffee with Jason"
-    assert event.start == dt.datetime(2002, 10, 28, 14, 0, tzinfo=ZoneInfo("US/Pacific"))
+    assert event.start == dt.datetime(
+        2002, 10, 28, 14, 0, tzinfo=ZoneInfo("US/Pacific")
+    )
     assert event.end == dt.datetime(2002, 10, 28, 15, 0, tzinfo=ZoneInfo("US/Pacific"))
     assert event.text("DTSTAMP") == [
         dt.datetime(2002, 10, 28, 1, 17, 6, tzinfo=dt.timezone.utc)

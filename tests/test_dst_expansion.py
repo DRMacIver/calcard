@@ -158,9 +158,7 @@ def test_weekly_across_spring_forward():
 def test_instances_are_real_instants():
     """The gap instance is not just formatted as 03:00 — it is the correct
     absolute time (01:00Z, the pre-gap offset applied to the wall time)."""
-    got = calcard.expand_rrule(
-        "FREQ=DAILY;COUNT=3", local("2023-03-25 02:00:00")
-    )
+    got = calcard.expand_rrule("FREQ=DAILY;COUNT=3", local("2023-03-25 02:00:00"))
     instants = [d.astimezone(dt.timezone.utc) for d in got]
     assert instants == [
         # 02:00 CET (+01:00) before the transition,
@@ -174,9 +172,7 @@ def test_instances_are_real_instants():
 
 def test_fall_back_ambiguous_takes_first_occurrence():
     # Zurich falls back 2023-10-29 03:00 -> 02:00; 02:30 happens twice.
-    got = calcard.expand_rrule(
-        "FREQ=DAILY;COUNT=2", local("2023-10-28 02:30:00")
-    )
+    got = calcard.expand_rrule("FREQ=DAILY;COUNT=2", local("2023-10-28 02:30:00"))
     instants = [d.astimezone(dt.timezone.utc) for d in got]
     assert instants == [
         dt.datetime(2023, 10, 28, 0, 30, tzinfo=dt.timezone.utc),

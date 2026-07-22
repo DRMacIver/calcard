@@ -94,6 +94,7 @@ event_models = st.fixed_dictionaries(
 # ---------------------------------------------------------------------------
 # Helpers
 
+
 def calcard_wire(model) -> str:
     cal = Component("VCALENDAR")
     cal.children = [
@@ -116,9 +117,7 @@ def calcard_wire(model) -> str:
             )
         ]
     if model["sequence"] is not None:
-        ev.children = ev.children + [
-            Property("SEQUENCE", str(model["sequence"]))
-        ]
+        ev.children = ev.children + [Property("SEQUENCE", str(model["sequence"]))]
     if model["start_end"] is not None:
         _kind, start, end = model["start_end"]
         view.start = start
@@ -167,6 +166,7 @@ def assert_same_point(kind, actual, expected):
 # ---------------------------------------------------------------------------
 # calcard -> py-vobject
 
+
 @given(event_models)
 @settings(deadline=None)
 def test_calcard_output_read_by_pyvobject(model):
@@ -199,6 +199,7 @@ def test_calcard_output_read_by_pyvobject(model):
 # ---------------------------------------------------------------------------
 # py-vobject -> calcard
 
+
 @given(event_models)
 @settings(deadline=None)
 def test_pyvobject_output_read_by_calcard(model):
@@ -230,6 +231,7 @@ def test_pyvobject_output_read_by_calcard(model):
 
 # ---------------------------------------------------------------------------
 # Text round-trip through SUMMARY, both directions
+
 
 @given(ical_text)
 @settings(deadline=None)

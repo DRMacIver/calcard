@@ -5,7 +5,12 @@
 //! the pure-Python `calcard` package on top of these primitives.
 //!
 //! The model classes hold shared references (`Py<T>`) to their children, so
-//! Python code can mutate a tree in place naturally.
+//! a child object obtained from the tree is the tree's child, not a copy,
+//! and mutating its attributes is visible through the tree. Note that the
+//! list-valued attributes (`children`, `params`, `values`) are materialized
+//! afresh on every read: `comp.children.append(x)` mutates a temporary and
+//! is silently lost. Mutate by assignment instead:
+//! `comp.children = [*comp.children, x]`.
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
@@ -206,6 +211,20 @@ impl Component {
     }
 
     fn __eq__(&self, other: &Component, py: Python<'_>) -> PyResult<bool> {
+        self.eq_at(other, py, 0)
+    }
+}
+
+impl Component {
+    /// Recursive equality with the same depth cap as tree conversion, so
+    /// pathologically deep (or cyclic) trees raise instead of overflowing
+    /// the C stack.
+    fn eq_at(&self, other: &Component, py: Python<'_>, depth: usize) -> PyResult<bool> {
+        if depth >= MAX_TREE_DEPTH {
+            return Err(PyValueError::new_err(
+                "component nesting exceeds the supported depth limit (is the tree cyclic?)",
+            ));
+        }
         if self.name != other.name || self.children.len() != other.children.len() {
             return Ok(false);
         }
@@ -217,7 +236,7 @@ impl Component {
             } else if let (Ok(ca), Ok(cb)) =
                 (a.cast_bound::<Component>(py), b.cast_bound::<Component>(py))
             {
-                if !ca.borrow().__eq__(&cb.borrow(), py)? {
+                if !ca.borrow().eq_at(&cb.borrow(), py, depth + 1)? {
                     return Ok(false);
                 }
             } else {
@@ -344,18 +363,31 @@ fn py_to_component_at(py: Python<'_>, c: &Component, depth: usize) -> PyResult<c
 // ---------------------------------------------------------------------------
 // Module functions
 
-/// Parse a document. Returns (components, repairs).
-#[pyfunction]
-#[pyo3(signature = (text, strict = false, max_depth = 512))]
-fn parse(py: Python<'_>, text: &str, strict: bool, max_depth: usize) -> PyResult<ParsedDocument> {
-    let options = core::ParseOptions {
+/// Validate parse options. `max_depth` may be lowered but never raised
+/// above `MAX_TREE_DEPTH`: deeper trees would parse and then crash the
+/// recursive conversion, comparison, and serialization paths.
+fn parse_options(strict: bool, max_depth: usize) -> PyResult<core::ParseOptions> {
+    if max_depth > MAX_TREE_DEPTH {
+        return Err(PyValueError::new_err(format!(
+            "max_depth may be lowered but not raised above {MAX_TREE_DEPTH}: \
+             deeper trees cannot be safely processed"
+        )));
+    }
+    Ok(core::ParseOptions {
         strictness: if strict {
             core::Strictness::Strict
         } else {
             core::Strictness::Lenient
         },
         max_depth,
-    };
+    })
+}
+
+/// Parse a document. Returns (components, repairs).
+#[pyfunction]
+#[pyo3(signature = (text, strict = false, max_depth = 512))]
+fn parse(py: Python<'_>, text: &str, strict: bool, max_depth: usize) -> PyResult<ParsedDocument> {
+    let options = parse_options(strict, max_depth)?;
     let parsed = core::parse(text, &options).map_err(|e| {
         let err = ParseError::new_err(e.to_string());
         // Attach the line number for programmatic access.
@@ -396,14 +428,7 @@ fn parse_bytes(
     strict: bool,
     max_depth: usize,
 ) -> PyResult<ParsedDocument> {
-    let options = core::ParseOptions {
-        strictness: if strict {
-            core::Strictness::Strict
-        } else {
-            core::Strictness::Lenient
-        },
-        max_depth,
-    };
+    let options = parse_options(strict, max_depth)?;
     let parsed = core::parse_bytes(data, &options).map_err(|e| {
         let err = ParseError::new_err(e.to_string());
         Python::attach(|py| {

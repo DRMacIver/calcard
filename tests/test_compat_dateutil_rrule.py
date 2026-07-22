@@ -73,8 +73,18 @@ WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 
 # Maximum length each month ever has (Feb: leap years).
 MONTH_MAX_DAYS = {
-    1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30,
-    7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31,
+    1: 31,
+    2: 29,
+    3: 31,
+    4: 30,
+    5: 31,
+    6: 30,
+    7: 31,
+    8: 31,
+    9: 30,
+    10: 31,
+    11: 30,
+    12: 31,
 }
 
 
@@ -111,9 +121,7 @@ def rules_with_start(draw):
     if freq in ("YEARLY", "MONTHLY", "WEEKLY", "DAILY", "HOURLY") and draw(
         st.booleans()
     ):
-        months = sorted(
-            draw(st.sets(st.integers(1, 12), min_size=1, max_size=3))
-        )
+        months = sorted(draw(st.sets(st.integers(1, 12), min_size=1, max_size=3)))
 
     # BYMONTHDAY: forbidden for WEEKLY (RFC 5545 3.3.10); for YEARLY only
     # together with BYMONTH (see module docstring); for HOURLY only with
@@ -126,9 +134,7 @@ def rules_with_start(draw):
     if monthday_ok and draw(st.booleans()):
         magnitude = 28 if (freq == "HOURLY" and months) else 31
         candidates = st.integers(-magnitude, magnitude).filter(lambda d: d != 0)
-        monthdays = sorted(
-            draw(st.sets(candidates, min_size=1, max_size=3))
-        )
+        monthdays = sorted(draw(st.sets(candidates, min_size=1, max_size=3)))
         if months and not _satisfiable(months, monthdays):
             monthdays = []
 
@@ -145,9 +151,7 @@ def rules_with_start(draw):
         allow_ordinals = freq in ("MONTHLY", "YEARLY") and not monthdays
         ordinal_mode = allow_ordinals and draw(st.booleans())
         ordinal = (
-            st.integers(-5, 5).filter(lambda n: n != 0)
-            if ordinal_mode
-            else st.just(0)
+            st.integers(-5, 5).filter(lambda n: n != 0) if ordinal_mode else st.just(0)
         )
         entries = draw(
             st.lists(
@@ -186,9 +190,7 @@ def rules_with_start(draw):
         guaranteed = 4 * len(bydays)
     elif freq == "YEARLY" and plain_bydays and months and not monthdays:
         guaranteed = 4 * len(bydays)
-    elif (
-        freq == "WEEKLY" and bydays and not months and dtstart.weekday() == 0
-    ):
+    elif freq == "WEEKLY" and bydays and not months and dtstart.weekday() == 0:
         # Only from a Monday DTSTART (see the WEEKLY+BYSETPOS deviation in
         # the module docstring).
         guaranteed = len(bydays)
