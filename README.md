@@ -66,9 +66,38 @@ let out = write_document(&parsed.components, &Default::default());
 Rust: `cargo test`. Python: `uv sync && uv run pytest`. After changing Rust
 code, rebuild the extension with `uv sync --reinstall-package vobject-rs`.
 
+## Typed views and recurrence
+
+```python
+doc = vobject.parse(text)
+for cal in doc.calendars:
+    for event in cal.events:
+        print(event.summary, event.start, event.end)
+        for occurrence in event.occurrences(limit=10):
+            print("  ", occurrence)
+```
+
+`vobject.to_jcal()` produces jCal (RFC 7265) / jCard (RFC 7095), verified
+against ical.js's expected outputs. `vobject.expand_rrule()` exposes the
+RRULE engine, validated against libical's icalrecur expectations.
+
+## Compatibility layers
+
+The distribution is a drop-in replacement for two established libraries;
+both upstream test suites run against it:
+
+- **py-vobject** — `vobject.readOne` / `readComponents`, behaviors,
+  `vobject.base` / `.icalendar` / `.vcard`, and the `ics_diff` /
+  `change_tz` scripts (58/58 upstream tests; requires the `compat` extra).
+- **icalendar** — a full `icalendar` package (7.2.2 API): `Calendar`,
+  `Event`, the `v*` property types, jCal, alarms (15,972 upstream tests).
+
+See `DESIGN.md` for the compat-layer policy.
+
 ## Status
 
-Early development. The syntax layer (parsing, serialization, escaping,
-folding) is complete and heavily tested; typed values, recurrence
-expansion, and the py-vobject / icalendar compatibility layers are in
-progress — see `DESIGN.md`.
+Feature-complete for the 0.1 scope: lossless strict/lenient syntax layer,
+typed values, jCal/jCard, RRULE expansion, clean typed Python API, and
+both compatibility layers, all backed by the cross-implementation
+conformance corpus. `DESIGN.md` tracks the roadmap and the post-1.0 ideas
+(RSCALE, timezone-aware expansion, xCal/xCard).

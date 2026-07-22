@@ -108,15 +108,40 @@ Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
 - [x] Content-line lexer + escaping + folding (strict & lenient)
 - [x] Component tree parser/serializer, lossless round-trip
       (incl. nesting depth cap found via the libical fuzz corpus)
-- [ ] Typed values (text, date/time, duration, period, utc-offset, recur…)
+- [x] Typed values (text, date/time, duration, period, utc-offset, recur,
+      structured values, per-dialect registries)
 - [x] hegel-rust property tests; fuzz-ish "never panic" tests
-- [x] Vendored conformance corpus + runner (parse/round-trip level;
-      jCal expected-output comparison awaits the value layer)
-- [x] PyO3 bindings + first cut of the clean Python API
-      (typed components/values still to come)
+- [x] Vendored conformance corpus + runner (~590 files incl. 446 extracted
+      from sabre/vobject's PHP tests)
+- [x] jCal/jCard conversion matching all 26 ical.js expected-output pairs
+- [x] RRULE expansion engine: 145/146 libical cases (the last is marked
+      UNIMPLEMENTED by libical itself); 119/127 ical.js cases with the 8
+      exceptions documented as ical.js deviations from RFC 5545
+- [x] PyO3 bindings; clean Python API with typed components
+      (Calendar/Event/Todo/Card views, native values, occurrences)
 - [x] Hypothesis tests for Python layer
-- [ ] jCal comparison against ical.js expected outputs
-- [ ] sabre heredoc extraction (conformance/tools/extract_sabre.py)
-- [ ] py-vobject compat module + upstream suite harness
-- [ ] icalendar compat module + upstream suite harness
-- [ ] RRULE expansion engine validated against libical data
+- [x] py-vobject compat (drop-in `vobject.base` etc.): upstream suite
+      passes 58/58 (vendored under tests_upstream/pyvobject)
+- [x] icalendar compat (drop-in `icalendar` package): upstream suite
+      passes 15,972 tests (ships inside python/icalendar/tests)
+
+## Compatibility layer policy
+
+The compat layers are adapted from their upstream projects (attributed in
+LICENSES/ and in file headers / VENDORED-NOTICE.txt): upstream code is the
+authoritative specification of the behavior their test suites check, and
+bug-for-bug parity is the compat contract. Delegation to the Rust core is
+done where behavior is provably identical (py-vobject's standard-width
+folding); it is deliberately *not* done where upstream semantics differ
+from the core's lenient profile (icalendar's unfold keeps lone CRs, never
+joins vCard 2.1 QP soft breaks, and refuses to fold after a trailing
+escape). The robust, Rust-backed path is the clean `vobject` API; the
+compat layers exist to run existing code and its tests unchanged.
+
+## Remaining ideas (post-1.0)
+
+- RSCALE (RFC 7529) recurrence via a calendar-systems dependency
+- Timezone-aware occurrence expansion (DST-crossing HOURLY rules; sabre's
+  RRuleIteratorTest DST cases are the reference data)
+- xCal/xCard (RFC 6321/6351)
+- Streaming/incremental parsing for very large files

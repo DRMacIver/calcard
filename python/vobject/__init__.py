@@ -39,14 +39,35 @@ from vobject._core import serialize as _core_serialize
 from vobject._core import expand_rrule as _expand_rrule
 from vobject._core import to_jcal_json as _to_jcal_json
 from vobject.values import native_value
+from vobject.typed import (
+    Alarm,
+    Calendar,
+    Card,
+    Event,
+    FreeBusy,
+    Journal,
+    Timezone,
+    Todo,
+    TypedComponent,
+    wrap,
+)
 
 __all__ = [
+    "Alarm",
+    "Calendar",
+    "Card",
     "Component",
     "Document",
+    "Event",
+    "FreeBusy",
+    "Journal",
     "Param",
     "ParseError",
     "Property",
     "Repair",
+    "Timezone",
+    "Todo",
+    "TypedComponent",
     "escape_text",
     "expand_rrule",
     "native_value",
@@ -56,6 +77,7 @@ __all__ = [
     "split_unescaped",
     "to_jcal",
     "unescape_text",
+    "wrap",
 ]
 
 __version__ = "0.1.0"
@@ -143,6 +165,20 @@ class Document:
 
     def __len__(self) -> int:
         return len(self.components)
+
+    @property
+    def calendars(self) -> list:
+        """Typed views of the top-level VCALENDAR components."""
+        from vobject.typed import Calendar
+
+        return [Calendar(c) for c in self.components if c.name.upper() == "VCALENDAR"]
+
+    @property
+    def cards(self) -> list:
+        """Typed views of the top-level VCARD components."""
+        from vobject.typed import Card
+
+        return [Card(c) for c in self.components if c.name.upper() == "VCARD"]
 
 
 def _decode(data: bytes) -> str:
