@@ -78,8 +78,14 @@ fn scalar_or_list<T: Copy + Into<i64>>(items: &[T]) -> Json {
 
 fn recur_to_json(recur: &value::Recur) -> Json {
     let mut obj = Map::new();
+    if let Some(rscale) = &recur.rscale {
+        obj.insert("rscale".into(), json!(rscale));
+    }
     if let Some(freq) = recur.freq {
         obj.insert("freq".into(), json!(freq.as_str()));
+    }
+    if let Some(skip) = recur.skip {
+        obj.insert("skip".into(), json!(skip.as_str()));
     }
     if let Some(count) = recur.count {
         obj.insert("count".into(), json!(count));
@@ -127,7 +133,26 @@ fn recur_to_json(recur: &value::Recur) -> Json {
         obj.insert("byweekno".into(), scalar_or_list(&recur.by_week_no));
     }
     if !recur.by_month.is_empty() {
-        obj.insert("bymonth".into(), scalar_or_list(&recur.by_month));
+        // RFC 7529: leap months are strings ("5L"), others plain numbers.
+        let months: Vec<Json> = recur
+            .by_month
+            .iter()
+            .map(|m| {
+                if m.leap {
+                    json!(m.to_string())
+                } else {
+                    json!(m.month)
+                }
+            })
+            .collect();
+        obj.insert(
+            "bymonth".into(),
+            if months.len() == 1 {
+                months.into_iter().next().unwrap()
+            } else {
+                Json::Array(months)
+            },
+        );
     }
     if !recur.by_set_pos.is_empty() {
         obj.insert("bysetpos".into(), scalar_or_list(&recur.by_set_pos));

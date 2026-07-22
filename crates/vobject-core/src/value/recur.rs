@@ -88,6 +88,65 @@ pub enum Until {
     DateTime(DateTime),
 }
 
+/// RFC 7529 SKIP: what to do with instances that are invalid in the
+/// recurrence calendar (nonexistent day, absent leap month).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Skip {
+    #[default]
+    Omit,
+    Backward,
+    Forward,
+}
+
+impl Skip {
+    pub fn parse(s: &str) -> Result<Skip, ValueError> {
+        match s.to_ascii_uppercase().as_str() {
+            "OMIT" => Ok(Skip::Omit),
+            "BACKWARD" => Ok(Skip::Backward),
+            "FORWARD" => Ok(Skip::Forward),
+            _ => Err(ValueError::new(format!("invalid SKIP {s:?}"))),
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Skip::Omit => "OMIT",
+            Skip::Backward => "BACKWARD",
+            Skip::Forward => "FORWARD",
+        }
+    }
+}
+
+/// A BYMONTH entry; RFC 7529 adds leap months (`5L`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RecurMonth {
+    pub month: u8,
+    pub leap: bool,
+}
+
+impl RecurMonth {
+    pub fn parse(s: &str) -> Result<RecurMonth, ValueError> {
+        let (digits, leap) = match s.strip_suffix(['L', 'l']) {
+            Some(d) => (d, true),
+            None => (s, false),
+        };
+        let month: u8 = digits
+            .parse()
+            .map_err(|_| ValueError::new(format!("invalid BYMONTH value {s:?}")))?;
+        if !(1..=13).contains(&month) {
+            // Month 13 exists in 13-month calendars (Ethiopic, Hebrew).
+            return Err(ValueError::new(format!("BYMONTH value {s:?} out of range")));
+        }
+        Ok(RecurMonth { month, leap })
+    }
+}
+
+impl fmt::Display for RecurMonth {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", self.month, if self.leap { "L" } else { "" })
+    }
+}
+
 impl fmt::Display for Until {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -115,9 +174,13 @@ pub struct Recur {
     pub by_month_day: Vec<i8>,
     pub by_year_day: Vec<i16>,
     pub by_week_no: Vec<i8>,
-    pub by_month: Vec<u8>,
+    pub by_month: Vec<RecurMonth>,
     pub by_set_pos: Vec<i16>,
     pub wkst: Option<Weekday>,
+    /// RFC 7529 recurrence calendar (e.g. "CHINESE"); uppercase.
+    pub rscale: Option<String>,
+    /// RFC 7529 invalid-instance handling; only meaningful with RSCALE.
+    pub skip: Option<Skip>,
     pub extra: Vec<(String, String)>,
 }
 
@@ -213,11 +276,18 @@ impl Recur {
                     recur.by_year_day = parse_int_list(value, -366, 366, false, 0, "BYYEARDAY")?
                 }
                 "BYWEEKNO" => recur.by_week_no = parse_int_list(value, -53, 53, false, 0, "BYWEEKNO")?,
-                "BYMONTH" => recur.by_month = parse_int_list(value, 1, 12, true, 0, "BYMONTH")?,
+                "BYMONTH" => {
+                    recur.by_month = value
+                        .split(',')
+                        .map(|p| RecurMonth::parse(p.trim()))
+                        .collect::<Result<_, _>>()?;
+                }
                 "BYSETPOS" => {
                     recur.by_set_pos = parse_int_list(value, -366, 366, false, 0, "BYSETPOS")?
                 }
                 "WKST" => recur.wkst = Some(Weekday::parse(value)?),
+                "RSCALE" => recur.rscale = Some(value.to_ascii_uppercase()),
+                "SKIP" => recur.skip = Some(Skip::parse(value)?),
                 _ => recur.extra.push((name.trim().to_string(), value.to_string())),
             }
         }
@@ -226,6 +296,17 @@ impl Recur {
         }
         if recur.until.is_some() && recur.count.is_some() {
             return Err(ValueError::new("RECUR with both UNTIL and COUNT"));
+        }
+        if recur.rscale.is_none() {
+            if recur.skip.is_some() {
+                return Err(ValueError::new("SKIP requires RSCALE"));
+            }
+            if recur.by_month.iter().any(|m| m.leap) {
+                return Err(ValueError::new("leap BYMONTH requires RSCALE"));
+            }
+            if recur.by_month.iter().any(|m| m.month > 12) {
+                return Err(ValueError::new("BYMONTH value out of range"));
+            }
         }
         Ok(recur)
     }
@@ -250,9 +331,12 @@ fn write_list<T: fmt::Display>(
 }
 
 impl fmt::Display for Recur {
-    /// Canonical serialization: FREQ first (Mac iCal requires it), then the
-    /// RFC's own ordering.
+    /// Canonical serialization: RSCALE first (RFC 7529's own examples),
+    /// then FREQ (Mac iCal requires it early), then the RFC's ordering.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(rscale) = &self.rscale {
+            write!(f, "RSCALE={rscale};")?;
+        }
         if let Some(freq) = self.freq {
             write!(f, "FREQ={}", freq.as_str())?;
         }
@@ -276,6 +360,9 @@ impl fmt::Display for Recur {
         write_list(f, "BYSETPOS", &self.by_set_pos)?;
         if let Some(w) = self.wkst {
             write!(f, ";WKST={}", w.abbrev())?;
+        }
+        if let Some(skip) = self.skip {
+            write!(f, ";SKIP={}", skip.as_str())?;
         }
         for (name, value) in &self.extra {
             write!(f, ";{name}={value}")?;
@@ -350,16 +437,34 @@ mod tests {
     #[test]
     fn unknown_parts_preserved() {
         let r = Recur::parse("FREQ=MONTHLY;RSCALE=CHINESE;X-FOO=bar").unwrap();
-        assert_eq!(
-            r.extra,
-            vec![
-                ("RSCALE".to_string(), "CHINESE".to_string()),
-                ("X-FOO".to_string(), "bar".to_string())
-            ]
-        );
+        assert_eq!(r.rscale.as_deref(), Some("CHINESE"));
+        assert_eq!(r.extra, vec![("X-FOO".to_string(), "bar".to_string())]);
         let out = r.to_string();
-        assert!(out.contains("RSCALE=CHINESE"));
+        assert!(out.starts_with("RSCALE=CHINESE;FREQ=MONTHLY"));
         assert!(out.contains("X-FOO=bar"));
+    }
+
+    #[test]
+    fn rscale_parts() {
+        let r = Recur::parse("RSCALE=CHINESE;FREQ=YEARLY;BYMONTH=9L;SKIP=BACKWARD").unwrap();
+        assert_eq!(
+            r.by_month,
+            vec![RecurMonth {
+                month: 9,
+                leap: true
+            }]
+        );
+        assert_eq!(r.skip, Some(Skip::Backward));
+        let round = Recur::parse(&r.to_string()).unwrap();
+        assert_eq!(round, r);
+    }
+
+    #[test]
+    fn rscale_features_require_rscale() {
+        assert!(Recur::parse("FREQ=YEARLY;BYMONTH=9L").is_err());
+        assert!(Recur::parse("FREQ=YEARLY;SKIP=FORWARD").is_err());
+        assert!(Recur::parse("FREQ=YEARLY;BYMONTH=13").is_err());
+        assert!(Recur::parse("RSCALE=ETHIOPIC;FREQ=YEARLY;BYMONTH=13").is_ok());
     }
 
     #[test]

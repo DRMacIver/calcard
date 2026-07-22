@@ -40,6 +40,7 @@ pub mod lines;
 pub mod model;
 pub mod parse;
 pub mod rrule;
+pub mod rscale;
 pub mod value;
 pub mod write;
 pub mod xcal;

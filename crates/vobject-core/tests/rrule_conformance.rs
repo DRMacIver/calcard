@@ -121,6 +121,113 @@ fn libical_icalrecur_expectations() {
 }
 
 #[test]
+fn libical_rscale_expectations() {
+    let dir = fixtures().join("libical/recur");
+    let mut cases: Vec<(String, String, String, Vec<String>)> = Vec::new();
+    for file in [
+        "icalrecur_test_rscale.txt",
+        "icalrecur_test_rscale_withicu.txt",
+        "icalrecur_test_rscale_withicu_dangi.txt",
+    ] {
+        let text = fs::read_to_string(dir.join(file)).unwrap();
+        let mut comment = String::new();
+        let mut rrule = String::new();
+        let mut dtstart = String::new();
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(c) = line.strip_prefix('#') {
+                comment = format!("{file}: {}", c.trim());
+            } else if let Some(r) = line.strip_prefix("RRULE:") {
+                rrule = r.to_string();
+            } else if let Some(d) = line.strip_prefix("DTSTART:") {
+                dtstart = d.to_string();
+            } else if let Some(i) = line.strip_prefix("INSTANCES:") {
+                let instances: Vec<String> =
+                    i.split(',').map(|s| s.trim().to_string()).collect();
+                cases.push((comment.clone(), rrule.clone(), dtstart.clone(), instances));
+            }
+        }
+    }
+    assert!(cases.len() >= 30, "only parsed {} RSCALE cases", cases.len());
+
+    let mut failures = Vec::new();
+    let mut checked = 0;
+    for (comment, rule, start, expected) in &cases {
+        if expected.iter().any(|e| e.starts_with("***")) {
+            // libical's own unimplemented markers (e.g. RSCALE=RUSSIAN must
+            // error) — verify we error rather than expand.
+            let recur = Recur::parse(rule);
+            let bad = recur.is_err()
+                || expand(
+                    &recur.unwrap(),
+                    DateOrDateTime::parse(start).unwrap(),
+                    ExpandLimits::default(),
+                )
+                .is_err();
+            if !bad {
+                failures.push(format!("{comment}: {rule} should be rejected"));
+            }
+            continue;
+        }
+        // Known calendar-backend divergence: the placement of the Chinese
+        // leap month 9 a century out depends on astronomical predictions
+        // of new moons and solar terms; ICU4C (libical's backend) puts the
+        // next one in 2109, ICU4X (ours) in 2139. Both agree on 2014. Only
+        // the agreed prefix is compared for this rule.
+        let backend_divergent = rule == "RSCALE=CHINESE;FREQ=YEARLY;BYMONTHDAY=10;BYMONTH=9L;SKIP=OMIT;COUNT=2";
+
+        let dtstart = DateOrDateTime::parse(start).unwrap();
+        let rule_is_finite = rule.to_ascii_uppercase().contains("COUNT=")
+            || rule.to_ascii_uppercase().contains("UNTIL=");
+        let limit = if rule_is_finite {
+            expected.len() + 5
+        } else {
+            expected.len()
+        };
+        match expand_strings(rule, dtstart, limit.max(1)) {
+            Ok(got) => {
+                if backend_divergent {
+                    if got.first() != expected.first() {
+                        failures.push(format!(
+                            "{comment}: first instance disagrees: got {:?} expected {:?}",
+                            got.first(),
+                            expected.first()
+                        ));
+                    } else {
+                        checked += 1;
+                    }
+                } else if &got != expected {
+                    let diff_at = got
+                        .iter()
+                        .zip(expected.iter())
+                        .position(|(a, b)| a != b)
+                        .unwrap_or(got.len().min(expected.len()));
+                    failures.push(format!(
+                        "{comment}\n    RRULE:{rule} DTSTART:{start}\n    got {} instances, expected {}; first diff at {diff_at}: got {:?} expected {:?}",
+                        got.len(),
+                        expected.len(),
+                        got.get(diff_at),
+                        expected.get(diff_at),
+                    ));
+                } else {
+                    checked += 1;
+                }
+            }
+            Err(e) => failures.push(format!("{comment}: RRULE:{rule}: {e}")),
+        }
+    }
+
+    if !failures.is_empty() {
+        panic!(
+            "{}/{} RSCALE cases failed ({checked} ok):\n{}",
+            failures.len(),
+            cases.len(),
+            failures.join("\n")
+        );
+    }
+}
+
+#[test]
 fn icaljs_recur_expectations() {
     let raw = fs::read_to_string(fixtures().join("icaljs/recur/cases.json")).unwrap();
     let data: serde_json::Value = serde_json::from_str(&raw).unwrap();

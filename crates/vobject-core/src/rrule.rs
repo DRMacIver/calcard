@@ -94,7 +94,14 @@ impl Config {
             Until::DateTime(dt) => dt,
         });
 
-        let mut by_month = recur.by_month.clone();
+        // The Gregorian engine has no leap months; RSCALE rules take the
+        // rscale expansion path before reaching this Config.
+        let mut by_month: Vec<u8> = recur
+            .by_month
+            .iter()
+            .filter(|m| !m.leap && m.month <= 12)
+            .map(|m| m.month)
+            .collect();
         let mut by_month_day: Vec<i8> = recur.by_month_day.clone();
         let mut by_day: Vec<(Option<i8>, Weekday)> = recur
             .by_day
@@ -817,8 +824,64 @@ impl Iterator for RRuleIter {
     }
 }
 
+/// The result of [`expand`]: either the streaming Gregorian iterator or a
+/// materialized RSCALE expansion.
+pub enum Expansion {
+    Gregorian(Box<RRuleIter>),
+    Rscale(std::vec::IntoIter<DateOrDateTime>),
+}
+
+impl Iterator for Expansion {
+    type Item = DateOrDateTime;
+
+    fn next(&mut self) -> Option<DateOrDateTime> {
+        match self {
+            Expansion::Gregorian(iter) => iter.next(),
+            Expansion::Rscale(iter) => iter.next(),
+        }
+    }
+}
+
 /// Expand a recurrence rule from a start instant.
+///
+/// RSCALE rules (RFC 7529) with YEARLY or MONTHLY frequency are evaluated
+/// in the recurrence calendar; other frequencies use the Gregorian engine
+/// directly, since day- and week-based arithmetic is calendar-independent
+/// (BYMONTH on such rules is then interpreted in the Gregorian calendar —
+/// a documented approximation).
 pub fn expand(
+    recur: &Recur,
+    dtstart: DateOrDateTime,
+    limits: ExpandLimits,
+) -> Result<Expansion, ValueError> {
+    if let Some(rscale) = &recur.rscale {
+        let gregorian = matches!(
+            rscale.to_ascii_uppercase().as_str(),
+            "GREGORIAN" | "GREGORY"
+        );
+        let skip_active = !matches!(
+            recur.skip.unwrap_or_default(),
+            crate::value::recur::Skip::Omit
+        );
+        let calendar_dependent = matches!(
+            recur.freq,
+            Some(Frequency::Yearly) | Some(Frequency::Monthly)
+        );
+        if calendar_dependent && (!gregorian || skip_active) {
+            let instances = crate::rscale::expand_rscale(recur, dtstart, limits)?;
+            return Ok(Expansion::Rscale(instances.into_iter()));
+        }
+        if !gregorian && crate::rscale::calendar_for(rscale).is_none() {
+            return Err(ValueError::new(format!("unsupported RSCALE {rscale:?}")));
+        }
+    }
+    Ok(Expansion::Gregorian(Box::new(expand_gregorian(
+        recur, dtstart, limits,
+    )?)))
+}
+
+/// The Gregorian expansion engine (no RSCALE handling).
+fn expand_gregorian(
     recur: &Recur,
     dtstart: DateOrDateTime,
     limits: ExpandLimits,
