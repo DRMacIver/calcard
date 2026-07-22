@@ -71,6 +71,7 @@ __all__ = [
     "TypedComponent",
     "escape_text",
     "expand_rrule",
+    "from_jcal",
     "from_xcal",
     "native_value",
     "parse",
@@ -320,6 +321,19 @@ def to_xcal(value) -> str:
     else:
         components = list(value)
     return to_xcal_xml(components)
+
+
+def from_jcal(value) -> Document:
+    """Parse a jCal (RFC 7265) / jCard (RFC 7095) document. Accepts a JSON
+    string, or the Python data structures ``to_jcal`` returns (a single
+    document or a list of documents)."""
+    import json
+
+    from vobject._core import from_jcal_json
+
+    if not isinstance(value, str):
+        value = json.dumps(value)
+    return Document(components=from_jcal_json(value), repairs=[])
 
 
 def from_xcal(xml: str) -> Document:

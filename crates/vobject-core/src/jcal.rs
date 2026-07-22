@@ -13,10 +13,11 @@
 
 use serde_json::{json, Map, Value as Json};
 
-use crate::model::{Component, Property};
+use crate::escape::escape_text;
+use crate::model::{Component, Param, Property};
 use crate::value::{
-    self, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time, TypeInfo, Until, Value,
-    ValueType,
+    self, default_type_info, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time,
+    TypeInfo, Until, Value, ValueType,
 };
 
 fn json_date(d: &Date) -> String {
@@ -390,6 +391,451 @@ pub fn component_to_jcal(comp: &Component, dialect: Dialect) -> Json {
 /// Convert a top-level component, auto-detecting the dialect.
 pub fn to_jcal(comp: &Component) -> Json {
     component_to_jcal(comp, detect_dialect(comp))
+}
+
+// ---------------------------------------------------------------------------
+// Reading
+
+/// Maximum component nesting depth accepted when reading jCal, matching the
+/// wire parser's cap (fuzz inputs nest tens of thousands of levels deep; a
+/// recursive walk without a cap is a stack-overflow abort). String input is
+/// additionally bounded earlier by serde_json's own recursion limit (128),
+/// which this cap backstops for callers passing pre-built values.
+pub const MAX_DEPTH: usize = 512;
+
+/// An error reading a jCal/jCard document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JcalError {
+    pub message: String,
+}
+
+impl JcalError {
+    fn new(message: impl Into<String>) -> JcalError {
+        JcalError {
+            message: message.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for JcalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for JcalError {}
+
+/// Parse a jCal (RFC 7265) / jCard (RFC 7095) document, accepting the
+/// dialect [`to_jcal`] writes. The top level may be a single document
+/// (`["vcalendar", props, comps]`, or jCard's two-element
+/// `["vcard", props]`) or an array of several such documents.
+///
+/// Reading maps the JSON back to the lossless document model, recording a
+/// `VALUE` parameter whenever the value type could not otherwise be
+/// reproduced, so round-trips preserve typing. The writer's documented
+/// degradations (unparseable values carried as raw strings) are read back
+/// verbatim.
+pub fn from_jcal(json: &str) -> Result<Vec<Component>, JcalError> {
+    let value: Json = serde_json::from_str(json)
+        .map_err(|e| JcalError::new(format!("invalid JSON: {e}")))?;
+    from_jcal_value(&value)
+}
+
+/// [`from_jcal`] on an already-parsed JSON value.
+pub fn from_jcal_value(value: &Json) -> Result<Vec<Component>, JcalError> {
+    let arr = value
+        .as_array()
+        .ok_or_else(|| JcalError::new("expected a jCal array"))?;
+    match arr.first() {
+        Some(Json::String(_)) => Ok(vec![document_component(value)?]),
+        Some(Json::Array(_)) => arr.iter().map(document_component).collect(),
+        Some(other) => Err(JcalError::new(format!(
+            "expected a component name or a nested document, found {other}"
+        ))),
+        None => Err(JcalError::new("empty jCal document")),
+    }
+}
+
+/// Parse one top-level component, choosing the dialect the way the writer
+/// does ([`detect_dialect`]): a vCard's own VERSION decides which
+/// property-type registry applies.
+fn document_component(v: &Json) -> Result<Component, JcalError> {
+    let arr = v
+        .as_array()
+        .ok_or_else(|| JcalError::new("malformed jCal component"))?;
+    let name = arr.first().and_then(Json::as_str).unwrap_or_default();
+    let dialect = if name.eq_ignore_ascii_case("vcard") {
+        let version = arr.get(1).and_then(Json::as_array).and_then(|props| {
+            props.iter().find_map(|p| {
+                let entry = p.as_array()?;
+                if entry.first()?.as_str()?.eq_ignore_ascii_case("version") {
+                    entry.get(3).map(json_scalar_to_string)
+                } else {
+                    None
+                }
+            })
+        });
+        match version.as_deref().map(str::trim) {
+            Some("2.1") | Some("3.0") => Dialect::VCard3,
+            _ => Dialect::VCard4,
+        }
+    } else {
+        Dialect::ICalendar
+    };
+    component_from_json(v, dialect, 0)
+}
+
+fn component_from_json(
+    v: &Json,
+    dialect: Dialect,
+    depth: usize,
+) -> Result<Component, JcalError> {
+    if depth > MAX_DEPTH {
+        return Err(JcalError::new("jCal components nested too deeply"));
+    }
+    let arr = v
+        .as_array()
+        .ok_or_else(|| JcalError::new("malformed jCal component"))?;
+    // jCal components are [name, properties, components]; RFC 7095 jCard
+    // omits the (always empty) subcomponent array.
+    if !(2..=3).contains(&arr.len()) {
+        return Err(JcalError::new(
+            "malformed jCal component: expected [name, properties, components]",
+        ));
+    }
+    let name = arr[0]
+        .as_str()
+        .ok_or_else(|| JcalError::new("component name must be a string"))?;
+    let props = arr[1]
+        .as_array()
+        .ok_or_else(|| JcalError::new("component properties must be an array"))?;
+    let mut comp = Component::new(name.to_ascii_uppercase());
+    for p in props {
+        comp.push_property(property_from_json(p, dialect)?);
+    }
+    if let Some(subs) = arr.get(2) {
+        let subs = subs
+            .as_array()
+            .ok_or_else(|| JcalError::new("component subcomponents must be an array"))?;
+        for c in subs {
+            comp.push_component(component_from_json(c, dialect, depth + 1)?);
+        }
+    }
+    Ok(comp)
+}
+
+fn json_scalar_to_string(v: &Json) -> String {
+    match v {
+        Json::String(s) => s.clone(),
+        Json::Bool(b) => b.to_string(),
+        Json::Number(n) => n.to_string(),
+        Json::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+fn property_from_json(v: &Json, dialect: Dialect) -> Result<Property, JcalError> {
+    let entry = v
+        .as_array()
+        .ok_or_else(|| JcalError::new("malformed jCal property"))?;
+    if entry.len() < 3 {
+        return Err(JcalError::new(
+            "malformed jCal property: expected [name, params, type, value…]",
+        ));
+    }
+    let raw_name = entry[0]
+        .as_str()
+        .ok_or_else(|| JcalError::new("property name must be a string"))?;
+    let params_obj = entry[1]
+        .as_object()
+        .ok_or_else(|| JcalError::new("property parameters must be an object"))?;
+    let type_name = entry[2]
+        .as_str()
+        .ok_or_else(|| JcalError::new("property value type must be a string"))?;
+    let slots = &entry[3..];
+    if slots.is_empty() {
+        return Err(JcalError::new(format!(
+            "property {raw_name:?} has no value"
+        )));
+    }
+
+    let vcard = matches!(dialect, Dialect::VCard3 | Dialect::VCard4);
+
+    // vCard groups travel as a "group" parameter; iCalendar spells them as
+    // a name prefix (both matching the writer).
+    let mut group = None;
+    let name = if vcard {
+        raw_name.to_ascii_uppercase()
+    } else {
+        match raw_name.split_once('.') {
+            Some((g, rest)) => {
+                group = Some(g.to_string());
+                rest.to_ascii_uppercase()
+            }
+            None => raw_name.to_ascii_uppercase(),
+        }
+    };
+
+    let mut params: Vec<Param> = Vec::new();
+    for (key, pvalue) in params_obj {
+        if vcard && key.eq_ignore_ascii_case("group") {
+            let scalar = match pvalue {
+                Json::Array(items) => items.first().unwrap_or(&Json::Null),
+                other => other,
+            };
+            group = Some(json_scalar_to_string(scalar));
+            continue;
+        }
+        let values = match pvalue {
+            Json::Array(items) => items.iter().map(json_scalar_to_string).collect(),
+            other => vec![json_scalar_to_string(other)],
+        };
+        params.push(Param {
+            name: key.to_ascii_uppercase(),
+            values,
+        });
+    }
+
+    let default = default_type_info(&name, dialect);
+    let declared = ValueType::from_name(type_name);
+    // An unrecognized type name reads its values as raw wire text.
+    let effective = declared.unwrap_or(ValueType::Unknown);
+
+    let mut force_value_param = false;
+    let raw = raw_from_slots(slots, effective, default, dialect, &mut force_value_param);
+
+    // Record the value type when the writer would not reproduce it from the
+    // property alone: it differs from the registry default, or writing
+    // without a VALUE parameter would shape-infer a different date type.
+    if let Some(declared) = declared {
+        let has_time = raw.contains(['T', 't']);
+        let inferred = match default.vtype {
+            ValueType::DateTime if !has_time => ValueType::Date,
+            ValueType::Date if has_time => ValueType::DateTime,
+            v => v,
+        };
+        if declared != default.vtype || declared != inferred || force_value_param {
+            params.push(Param::new("VALUE", type_name.to_ascii_uppercase()));
+        }
+    }
+
+    Ok(Property {
+        group,
+        name,
+        params,
+        value: raw,
+    })
+}
+
+fn join_slots(slots: &[Json], f: impl Fn(&Json) -> String) -> String {
+    slots.iter().map(f).collect::<Vec<_>>().join(",")
+}
+
+/// Reconstruct the raw wire value from the jCal value slots. The inverse of
+/// [`value_to_json_slots`], on that function's image; unrecognized shapes
+/// degrade to their verbatim text so reading stays total.
+fn raw_from_slots(
+    slots: &[Json],
+    effective: ValueType,
+    default: TypeInfo,
+    dialect: Dialect,
+    force_value_param: &mut bool,
+) -> String {
+    use ValueType::*;
+    let structured = matches!(default.multiplicity, Multiplicity::Structured { .. });
+    match effective {
+        Text | PhoneNumber | Vcard if structured => structured_text_raw(&slots[0]),
+        Text | PhoneNumber | Vcard | Uri | CalAddress => {
+            join_slots(slots, |s| escape_text(&json_scalar_to_string(s)))
+        }
+        Date | DateTime | Time | Timestamp | DateAndOrTime => join_slots(slots, |s| match s {
+            Json::String(text) => date_slot_to_wire(text, effective, dialect),
+            other => json_scalar_to_string(other),
+        }),
+        UtcOffset => join_slots(slots, |s| match s {
+            Json::String(text) => {
+                verified_wire(text, text.replace(':', ""), effective, dialect)
+            }
+            other => json_scalar_to_string(other),
+        }),
+        Boolean => match &slots[0] {
+            Json::Bool(true) => "TRUE".to_string(),
+            Json::Bool(false) => "FALSE".to_string(),
+            other => json_scalar_to_string(other),
+        },
+        Float if structured && default.vtype == Float => match &slots[0] {
+            Json::Array(items) => items
+                .iter()
+                .map(float_slot_to_string)
+                .collect::<Vec<_>>()
+                .join(";"),
+            n @ Json::Number(_) => {
+                // A bare number where the registry expects lat;lon means the
+                // writer saw an explicit VALUE=FLOAT (single multiplicity);
+                // record it so re-writing takes the same path.
+                *force_value_param = true;
+                float_slot_to_string(n)
+            }
+            other => json_scalar_to_string(other),
+        },
+        Float => join_slots(slots, float_slot_to_string),
+        Integer | Binary | Duration | LanguageTag | Unknown => {
+            join_slots(slots, json_scalar_to_string)
+        }
+        Period => join_slots(slots, period_slot_to_wire),
+        Recur => recur_slot_to_wire(&slots[0]),
+    }
+}
+
+/// One structured (semicolon-separated) text value, undoing the writer's
+/// collapses: a bare string is a singleton component of a single-component
+/// value; array entries are components, themselves strings or comma lists.
+fn structured_text_raw(slot: &Json) -> String {
+    fn component(entry: &Json) -> String {
+        match entry {
+            Json::Array(items) => items
+                .iter()
+                .map(|i| escape_text(&json_scalar_to_string(i)))
+                .collect::<Vec<_>>()
+                .join(","),
+            other => escape_text(&json_scalar_to_string(other)),
+        }
+    }
+    match slot {
+        Json::Array(entries) => entries
+            .iter()
+            .map(component)
+            .collect::<Vec<_>>()
+            .join(";"),
+        other => component(other),
+    }
+}
+
+fn float_slot_to_string(v: &Json) -> String {
+    match v {
+        Json::Number(n) => value::format_float(n.as_f64().unwrap_or(0.0)),
+        other => json_scalar_to_string(other),
+    }
+}
+
+fn period_slot_to_wire(v: &Json) -> String {
+    match v {
+        Json::Array(pair) => {
+            let start = pair
+                .first()
+                .map(json_scalar_to_string)
+                .unwrap_or_default()
+                .replace(['-', ':'], "");
+            let end = pair.get(1).map(json_scalar_to_string).unwrap_or_default();
+            let end = if end.starts_with(['P', 'p', '+', '-']) {
+                end
+            } else {
+                end.replace(['-', ':'], "")
+            };
+            format!("{start}/{end}")
+        }
+        // Raw fallback for unparseable period values.
+        other => json_scalar_to_string(other),
+    }
+}
+
+fn recur_slot_to_wire(v: &Json) -> String {
+    let obj = match v {
+        Json::Object(obj) => obj,
+        // Raw fallback for unparseable recur values.
+        other => return json_scalar_to_string(other),
+    };
+    let mut parts: Vec<String> = Vec::new();
+    for (key, pv) in obj {
+        let name = key.to_ascii_uppercase();
+        let joined = match pv {
+            Json::Array(items) => items
+                .iter()
+                .map(json_scalar_to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            other => json_scalar_to_string(other),
+        };
+        let value = if name == "UNTIL" {
+            joined.replace(['-', ':'], "")
+        } else {
+            joined
+        };
+        parts.push(format!("{name}={value}"));
+    }
+    let wire = parts.join(";");
+    // Canonicalize part order (the model's canonical form).
+    match value::Recur::parse(&wire) {
+        Ok(r) => r.to_string(),
+        Err(_) => wire,
+    }
+}
+
+/// Compact a dashed date, respecting vCard truncation forms: leading
+/// dashes are markers (`--02-03` → `--0203`), and `1985-04` keeps its
+/// dash per RFC 6350. Unrecognized shapes pass through.
+fn compact_date(d: &str) -> String {
+    let b = d.as_bytes();
+    if d.len() == 10 && b[4] == b'-' && b[7] == b'-' {
+        format!("{}{}{}", &d[0..4], &d[5..7], &d[8..10])
+    } else if d.len() == 7 && d.starts_with("--") && b[4] == b'-' {
+        format!("--{}{}", &d[2..4], &d[5..7])
+    } else {
+        d.to_string()
+    }
+}
+
+/// Convert a date-family value slot back to wire form. vCard 3.0's own
+/// wire format is the extended (dashed) ISO form, so its date family
+/// passes through verbatim; elsewhere the dashed/coloned jCal text is
+/// compacted, but only when the writer would render the compacted value
+/// back to exactly this slot — unparseable wire values travel through
+/// jCal as raw strings and must return verbatim.
+fn date_slot_to_wire(text: &str, vtype: ValueType, dialect: Dialect) -> String {
+    if dialect == Dialect::VCard3 {
+        return text.to_string();
+    }
+    let looks_like_datetime = !text.is_empty()
+        && text.chars().all(|c| {
+            c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-')
+        });
+    if !looks_like_datetime {
+        return text.to_string();
+    }
+    let candidate = match text.split_once(['T', 't']) {
+        // Colons in a time part are only separators; dashes there are zone
+        // signs or truncation markers and must survive.
+        Some((d, t)) => format!("{}T{}", compact_date(d), t.replace(':', "")),
+        None => {
+            if text.contains(':') {
+                // A bare time value.
+                text.replace(':', "")
+            } else {
+                compact_date(text)
+            }
+        }
+    };
+    verified_wire(text, candidate, vtype, dialect)
+}
+
+/// Accept `candidate` as the wire form of a slot only if the writer would
+/// render it back to exactly `text`; otherwise keep the slot text verbatim
+/// (the raw-fallback path, which the writer reproduces as-is).
+fn verified_wire(text: &str, candidate: String, vtype: ValueType, dialect: Dialect) -> String {
+    if candidate == text {
+        return candidate;
+    }
+    let probe = Property::new("X-CHECK", candidate.clone());
+    let info = TypeInfo {
+        vtype,
+        multiplicity: Multiplicity::Single,
+    };
+    let slots = value_to_json_slots(&probe, info, dialect);
+    if slots.len() == 1 && slots[0].as_str() == Some(text) {
+        candidate
+    } else {
+        text.to_string()
+    }
 }
 
 #[cfg(test)]

@@ -668,6 +668,14 @@ fn from_xcal_xml(py: Python<'_>, xml: &str) -> PyResult<Vec<Py<Component>>> {
     comps.iter().map(|c| component_to_py(py, c)).collect()
 }
 
+/// Parse a jCal/jCard JSON document into components.
+#[pyfunction]
+fn from_jcal_json(py: Python<'_>, json: &str) -> PyResult<Vec<Py<Component>>> {
+    let comps =
+        vobject_core::jcal::from_jcal(json).map_err(|e| ParseError::new_err(e.to_string()))?;
+    comps.iter().map(|c| component_to_py(py, c)).collect()
+}
+
 #[pymodule]
 fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Component>()?;
@@ -686,6 +694,7 @@ fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_jcal_json, m)?)?;
     m.add_function(wrap_pyfunction!(to_xcal_xml, m)?)?;
     m.add_function(wrap_pyfunction!(from_xcal_xml, m)?)?;
+    m.add_function(wrap_pyfunction!(from_jcal_json, m)?)?;
     m.add("ParseError", py.get_type::<ParseError>())?;
     Ok(())
 }
