@@ -105,13 +105,18 @@ Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
 ## Roadmap / status
 
 - [x] Workspace scaffolding
-- [ ] Content-line lexer + escaping + folding (strict & lenient)
-- [ ] Component tree parser/serializer, lossless round-trip
+- [x] Content-line lexer + escaping + folding (strict & lenient)
+- [x] Component tree parser/serializer, lossless round-trip
+      (incl. nesting depth cap found via the libical fuzz corpus)
 - [ ] Typed values (text, date/time, duration, period, utc-offset, recur…)
-- [ ] hegel-rust property tests; fuzz-ish "never panic" tests
-- [ ] Vendored conformance corpus + runner
-- [ ] PyO3 bindings + clean Python API
-- [ ] Hypothesis tests for Python layer
+- [x] hegel-rust property tests; fuzz-ish "never panic" tests
+- [x] Vendored conformance corpus + runner (parse/round-trip level;
+      jCal expected-output comparison awaits the value layer)
+- [x] PyO3 bindings + first cut of the clean Python API
+      (typed components/values still to come)
+- [x] Hypothesis tests for Python layer
+- [ ] jCal comparison against ical.js expected outputs
+- [ ] sabre heredoc extraction (conformance/tools/extract_sabre.py)
 - [ ] py-vobject compat module + upstream suite harness
 - [ ] icalendar compat module + upstream suite harness
 - [ ] RRULE expansion engine validated against libical data

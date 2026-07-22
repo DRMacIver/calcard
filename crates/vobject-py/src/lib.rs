@@ -1,2 +1,404 @@
-//! PyO3 bindings for vobject-core. Placeholder until the binding layer is
-//! implemented; kept minimal so the workspace builds.
+//! PyO3 bindings for vobject-core.
+//!
+//! This module (`vobject._core`) exposes the lossless document model and the
+//! strict/lenient parser and serializer. The user-facing Python API lives in
+//! the pure-Python `vobject` package on top of these primitives.
+//!
+//! The model classes hold shared references (`Py<T>`) to their children, so
+//! Python code can mutate a tree in place naturally.
+
+use pyo3::create_exception;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use vobject_core as core;
+
+create_exception!(
+    vobject._core,
+    ParseError,
+    PyValueError,
+    "The input could not be parsed as a vobject document."
+);
+
+/// A property parameter: a name and zero or more decoded values.
+#[pyclass(module = "vobject._core")]
+struct Param {
+    #[pyo3(get, set)]
+    name: String,
+    #[pyo3(get, set)]
+    values: Vec<String>,
+}
+
+#[pymethods]
+impl Param {
+    #[new]
+    #[pyo3(signature = (name, values = Vec::new()))]
+    fn new(name: String, values: Vec<String>) -> Param {
+        Param { name, values }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Param(name={:?}, values={:?})", self.name, self.values)
+    }
+
+    fn __eq__(&self, other: &Param) -> bool {
+        self.name == other.name && self.values == other.values
+    }
+}
+
+/// A single content line: group, name, parameters, and the raw value.
+#[pyclass(module = "vobject._core")]
+struct Property {
+    #[pyo3(get, set)]
+    group: Option<String>,
+    #[pyo3(get, set)]
+    name: String,
+    #[pyo3(get, set)]
+    params: Vec<Py<Param>>,
+    /// The raw (escaped, unfolded) value text.
+    #[pyo3(get, set)]
+    value: String,
+}
+
+#[pymethods]
+impl Property {
+    #[new]
+    #[pyo3(signature = (name, value, params = Vec::new(), group = None))]
+    fn new(name: String, value: String, params: Vec<Py<Param>>, group: Option<String>) -> Property {
+        Property {
+            group,
+            name,
+            params,
+            value,
+        }
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> String {
+        let params: Vec<String> = self
+            .params
+            .iter()
+            .map(|p| p.borrow(py).__repr__())
+            .collect();
+        format!(
+            "Property(name={:?}, value={:?}, params=[{}], group={:?})",
+            self.name,
+            self.value,
+            params.join(", "),
+            self.group
+        )
+    }
+
+    fn __eq__(&self, other: &Property, py: Python<'_>) -> bool {
+        self.group == other.group
+            && self.name == other.name
+            && self.value == other.value
+            && self.params.len() == other.params.len()
+            && self
+                .params
+                .iter()
+                .zip(&other.params)
+                .all(|(a, b)| a.borrow(py).__eq__(&b.borrow(py)))
+    }
+}
+
+/// A component: a name plus an ordered list of children, each of which is
+/// either a Property or a Component.
+#[pyclass(module = "vobject._core")]
+struct Component {
+    #[pyo3(get, set)]
+    name: String,
+    #[pyo3(get, set)]
+    children: Vec<Py<PyAny>>,
+}
+
+#[pymethods]
+impl Component {
+    #[new]
+    #[pyo3(signature = (name, children = Vec::new()))]
+    fn new(name: String, children: Vec<Py<PyAny>>) -> Component {
+        Component { name, children }
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "Component(name={:?}, <{} children>)",
+            self.name,
+            self.children.len()
+        )
+    }
+
+    /// All direct child properties, in order.
+    fn properties(&self, py: Python<'_>) -> Vec<Py<Property>> {
+        self.children
+            .iter()
+            .filter_map(|c| c.cast_bound::<Property>(py).ok())
+            .map(|p| p.clone().unbind())
+            .collect()
+    }
+
+    /// All direct child components, in order.
+    fn components(&self, py: Python<'_>) -> Vec<Py<Component>> {
+        self.children
+            .iter()
+            .filter_map(|c| c.cast_bound::<Component>(py).ok())
+            .map(|c| c.clone().unbind())
+            .collect()
+    }
+
+    /// Direct child properties with the given name (case-insensitive).
+    fn props(&self, py: Python<'_>, name: &str) -> Vec<Py<Property>> {
+        self.properties(py)
+            .into_iter()
+            .filter(|p| p.borrow(py).name.eq_ignore_ascii_case(name))
+            .collect()
+    }
+
+    /// First direct child property with the given name, or None.
+    fn prop(&self, py: Python<'_>, name: &str) -> Option<Py<Property>> {
+        self.props(py, name).into_iter().next()
+    }
+
+    /// Direct child components with the given name (case-insensitive).
+    fn comps(&self, py: Python<'_>, name: &str) -> Vec<Py<Component>> {
+        self.components(py)
+            .into_iter()
+            .filter(|c| c.borrow(py).name.eq_ignore_ascii_case(name))
+            .collect()
+    }
+
+    /// First direct child component with the given name, or None.
+    fn comp(&self, py: Python<'_>, name: &str) -> Option<Py<Component>> {
+        self.comps(py, name).into_iter().next()
+    }
+
+    fn __eq__(&self, other: &Component, py: Python<'_>) -> PyResult<bool> {
+        if self.name != other.name || self.children.len() != other.children.len() {
+            return Ok(false);
+        }
+        for (a, b) in self.children.iter().zip(&other.children) {
+            if let (Ok(pa), Ok(pb)) = (
+                a.cast_bound::<Property>(py),
+                b.cast_bound::<Property>(py),
+            ) {
+                if !pa.borrow().__eq__(&pb.borrow(), py) {
+                    return Ok(false);
+                }
+            } else if let (Ok(ca), Ok(cb)) = (
+                a.cast_bound::<Component>(py),
+                b.cast_bound::<Component>(py),
+            ) {
+                if !ca.borrow().__eq__(&cb.borrow(), py)? {
+                    return Ok(false);
+                }
+            } else {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+}
+
+/// One recovery made by the lenient parser.
+#[pyclass(module = "vobject._core", frozen)]
+struct Repair {
+    #[pyo3(get)]
+    line: usize,
+    #[pyo3(get)]
+    message: String,
+}
+
+#[pymethods]
+impl Repair {
+    fn __repr__(&self) -> String {
+        format!("Repair(line={}, message={:?})", self.line, self.message)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Conversions between the core model and the Python classes.
+
+fn param_to_py(py: Python<'_>, p: &core::Param) -> PyResult<Py<Param>> {
+    Py::new(
+        py,
+        Param {
+            name: p.name.clone(),
+            values: p.values.clone(),
+        },
+    )
+}
+
+fn property_to_py(py: Python<'_>, p: &core::Property) -> PyResult<Py<Property>> {
+    Ok(Py::new(
+        py,
+        Property {
+            group: p.group.clone(),
+            name: p.name.clone(),
+            params: p
+                .params
+                .iter()
+                .map(|param| param_to_py(py, param))
+                .collect::<PyResult<Vec<_>>>()?,
+            value: p.value.clone(),
+        },
+    )?)
+}
+
+fn component_to_py(py: Python<'_>, c: &core::Component) -> PyResult<Py<Component>> {
+    let mut children: Vec<Py<PyAny>> = Vec::with_capacity(c.children.len());
+    for child in &c.children {
+        match child {
+            core::Child::Property(p) => children.push(property_to_py(py, p)?.into_any()),
+            core::Child::Component(k) => children.push(component_to_py(py, k)?.into_any()),
+        }
+    }
+    Py::new(
+        py,
+        Component {
+            name: c.name.clone(),
+            children,
+        },
+    )
+}
+
+fn py_to_property(py: Python<'_>, p: &Property) -> core::Property {
+    core::Property {
+        group: p.group.clone(),
+        name: p.name.clone(),
+        params: p
+            .params
+            .iter()
+            .map(|param| {
+                let param = param.borrow(py);
+                core::Param {
+                    name: param.name.clone(),
+                    values: param.values.clone(),
+                }
+            })
+            .collect(),
+        value: p.value.clone(),
+    }
+}
+
+fn py_to_component(py: Python<'_>, c: &Component) -> PyResult<core::Component> {
+    let mut out = core::Component::new(c.name.clone());
+    for child in &c.children {
+        if let Ok(p) = child.cast_bound::<Property>(py) {
+            out.push_property(py_to_property(py, &p.borrow()));
+        } else if let Ok(k) = child.cast_bound::<Component>(py) {
+            out.push_component(py_to_component(py, &k.borrow())?);
+        } else {
+            return Err(PyValueError::new_err(format!(
+                "component children must be Property or Component, not {}",
+                child.bind(py).get_type().name()?
+            )));
+        }
+    }
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Module functions
+
+/// Parse a document. Returns (components, repairs).
+#[pyfunction]
+#[pyo3(signature = (text, strict = false, max_depth = 512))]
+fn parse(
+    py: Python<'_>,
+    text: &str,
+    strict: bool,
+    max_depth: usize,
+) -> PyResult<(Vec<Py<Component>>, Vec<Py<Repair>>)> {
+    let options = core::ParseOptions {
+        strictness: if strict {
+            core::Strictness::Strict
+        } else {
+            core::Strictness::Lenient
+        },
+        max_depth,
+    };
+    let parsed = core::parse(text, &options).map_err(|e| {
+        let err = ParseError::new_err(e.to_string());
+        // Attach the line number for programmatic access.
+        Python::attach(|py| {
+            let _ = err.value(py).setattr("line", e.location.line);
+        });
+        err
+    })?;
+
+    let components = parsed
+        .components
+        .iter()
+        .map(|c| component_to_py(py, c))
+        .collect::<PyResult<Vec<_>>>()?;
+    let repairs = parsed
+        .repairs
+        .iter()
+        .map(|r| {
+            Py::new(
+                py,
+                Repair {
+                    line: r.location.line,
+                    message: r.kind.to_string(),
+                },
+            )
+        })
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok((components, repairs))
+}
+
+/// Serialize components to wire format.
+#[pyfunction]
+#[pyo3(signature = (components, line_ending = "\r\n", fold_width = Some(75)))]
+fn serialize(
+    py: Python<'_>,
+    components: Vec<Py<Component>>,
+    line_ending: &str,
+    fold_width: Option<usize>,
+) -> PyResult<String> {
+    let core_components: Vec<core::Component> = components
+        .iter()
+        .map(|c| py_to_component(py, &c.borrow(py)))
+        .collect::<PyResult<Vec<_>>>()?;
+    let options = core::WriteOptions {
+        line_ending: line_ending.to_string(),
+        fold_width,
+    };
+    Ok(core::write_document(&core_components, &options))
+}
+
+/// Unescape a TEXT value (leniently: invalid escapes are kept verbatim).
+#[pyfunction]
+fn unescape_text(text: &str) -> String {
+    let mut repairs = Vec::new();
+    core::escape::unescape_text(text, Some(&mut repairs), 1)
+        .expect("lenient unescape is total")
+}
+
+/// Escape a string as a TEXT value.
+#[pyfunction]
+fn escape_text(text: &str) -> String {
+    core::escape::escape_text(text)
+}
+
+/// Split a raw value on an unescaped separator (e.g. ',' or ';').
+#[pyfunction]
+fn split_unescaped(text: &str, separator: char) -> Vec<String> {
+    core::escape::split_unescaped(text, separator)
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+#[pymodule]
+fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<Component>()?;
+    m.add_class::<Property>()?;
+    m.add_class::<Param>()?;
+    m.add_class::<Repair>()?;
+    m.add_function(wrap_pyfunction!(parse, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize, m)?)?;
+    m.add_function(wrap_pyfunction!(escape_text, m)?)?;
+    m.add_function(wrap_pyfunction!(unescape_text, m)?)?;
+    m.add_function(wrap_pyfunction!(split_unescaped, m)?)?;
+    m.add("ParseError", py.get_type::<ParseError>())?;
+    Ok(())
+}

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["maturin>=1.11,<2"]
+build-backend = "maturin"
+
+[project]
+name = "vobject-rs"
+version = "0.1.0"
+description = "Robust iCalendar and vCard parsing and serialization, backed by a Rust core"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "vobject._core"
+manifest-path = "crates/vobject-py/Cargo.toml"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+    "maturin>=1.11",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
