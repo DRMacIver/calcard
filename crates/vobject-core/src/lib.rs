@@ -46,6 +46,7 @@ pub mod write;
 pub mod xcal;
 
 pub use error::{ErrorKind, Location, ParseError, Repair, RepairKind};
+pub use jcal::{from_jcal, JcalError};
 pub use model::{Child, Component, Param, Property};
 pub use parse::{parse, ParseOptions, Parsed, Strictness};
 pub use write::{write_component, write_document, WriteOptions};
