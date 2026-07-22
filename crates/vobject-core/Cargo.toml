@@ -12,4 +12,8 @@ quick-xml = "0.41.0"
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [dev-dependencies]
+chrono = "0.4.45"
 hegeltest = "0.28.2"
+ical = "0.11.0"
+icalendar = "0.17.12"
+rrule = "0.14.0"
