@@ -110,6 +110,33 @@ struct Component {
     children: Vec<Py<PyAny>>,
 }
 
+impl Drop for Component {
+    /// Deallocating a deeply nested tree through the default recursive
+    /// reference-count cascade overflows the C stack (a segfault, not an
+    /// exception). Flatten it: before releasing a child component this
+    /// object holds the only reference to, steal its children so its own
+    /// dealloc cannot recurse. Shared children (refcount > 1) are left
+    /// untouched — someone else still observes them.
+    fn drop(&mut self) {
+        if self.children.is_empty() {
+            return;
+        }
+        let mut stack = std::mem::take(&mut self.children);
+        Python::attach(|py| {
+            while let Some(obj) = stack.pop() {
+                if obj.get_refcnt(py) == 1 {
+                    if let Ok(comp) = obj.cast_bound::<Component>(py) {
+                        if let Ok(mut inner) = comp.try_borrow_mut() {
+                            stack.append(&mut inner.children);
+                        }
+                    }
+                }
+                drop(obj);
+            }
+        });
+    }
+}
+
 #[pymethods]
 impl Component {
     #[new]
@@ -278,13 +305,28 @@ fn py_to_property(py: Python<'_>, p: &Property) -> core::Property {
     }
 }
 
+/// Depth cap matching the parser's default `max_depth`. Python code can
+/// build arbitrarily deep (or, via shared child lists, cyclic) trees; an
+/// uncapped recursive conversion would abort the process with a stack
+/// overflow instead of raising.
+const MAX_TREE_DEPTH: usize = 512;
+
 fn py_to_component(py: Python<'_>, c: &Component) -> PyResult<core::Component> {
+    py_to_component_at(py, c, 0)
+}
+
+fn py_to_component_at(py: Python<'_>, c: &Component, depth: usize) -> PyResult<core::Component> {
+    if depth >= MAX_TREE_DEPTH {
+        return Err(PyValueError::new_err(
+            "component nesting exceeds the supported depth limit (is the tree cyclic?)",
+        ));
+    }
     let mut out = core::Component::new(c.name.clone());
     for child in &c.children {
         if let Ok(p) = child.cast_bound::<Property>(py) {
             out.push_property(py_to_property(py, &p.borrow()));
         } else if let Ok(k) = child.cast_bound::<Component>(py) {
-            out.push_component(py_to_component(py, &k.borrow())?);
+            out.push_component(py_to_component_at(py, &k.borrow(), depth + 1)?);
         } else {
             return Err(PyValueError::new_err(format!(
                 "component children must be Property or Component, not {}",
@@ -318,6 +360,53 @@ fn parse(
     let parsed = core::parse(text, &options).map_err(|e| {
         let err = ParseError::new_err(e.to_string());
         // Attach the line number for programmatic access.
+        Python::attach(|py| {
+            let _ = err.value(py).setattr("line", e.location.line);
+        });
+        err
+    })?;
+
+    let components = parsed
+        .components
+        .iter()
+        .map(|c| component_to_py(py, c))
+        .collect::<PyResult<Vec<_>>>()?;
+    let repairs = parsed
+        .repairs
+        .iter()
+        .map(|r| {
+            Py::new(
+                py,
+                Repair {
+                    line: r.location.line,
+                    message: r.kind.to_string(),
+                },
+            )
+        })
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok((components, repairs))
+}
+
+/// Parse a document from raw bytes (strict: UTF-8 only; lenient: Latin-1
+/// fallback recorded as a repair). Returns (components, repairs).
+#[pyfunction]
+#[pyo3(signature = (data, strict = false, max_depth = 512))]
+fn parse_bytes(
+    py: Python<'_>,
+    data: &[u8],
+    strict: bool,
+    max_depth: usize,
+) -> PyResult<(Vec<Py<Component>>, Vec<Py<Repair>>)> {
+    let options = core::ParseOptions {
+        strictness: if strict {
+            core::Strictness::Strict
+        } else {
+            core::Strictness::Lenient
+        },
+        max_depth,
+    };
+    let parsed = core::parse_bytes(data, &options).map_err(|e| {
+        let err = ParseError::new_err(e.to_string());
         Python::attach(|py| {
             let _ = err.value(py).setattr("line", e.location.line);
         });
@@ -407,7 +496,7 @@ fn split_unescaped(text: &str, separator: char) -> Vec<String> {
 /// - ("time", [(h, mi, s, utc)])
 /// - ("duration", [seconds])
 /// - ("period", [(start_tuple, end_kind, end_payload)])
-/// - ("recur", {parts}) / ("integer", [int]) / ("float", [float])
+/// - ("recur", str) — the canonicalized rule text / ("integer", [int]) / ("float", [float])
 /// - ("boolean", bool) / ("binary", bytes) / ("uri"|"cal-address", str)
 /// - ("utc-offset", seconds) / ("unknown", str)
 #[pyfunction]
@@ -586,6 +675,7 @@ fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Param>()?;
     m.add_class::<Repair>()?;
     m.add_function(wrap_pyfunction!(parse, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize, m)?)?;
     m.add_function(wrap_pyfunction!(escape_text, m)?)?;
     m.add_function(wrap_pyfunction!(unescape_text, m)?)?;

@@ -35,6 +35,7 @@ from vobject._core import (
     unescape_text,
 )
 from vobject._core import parse as _core_parse
+from vobject._core import parse_bytes as _core_parse_bytes
 from vobject._core import serialize as _core_serialize
 from vobject._core import expand_rrule as _expand_rrule
 from vobject._core import to_jcal_json as _to_jcal_json
@@ -183,17 +184,6 @@ class Document:
         return [Card(c) for c in self.components if c.name.upper() == "VCARD"]
 
 
-def _decode(data: bytes) -> str:
-    """Decode input bytes, tolerating a UTF-8 BOM and falling back to
-    Latin-1 (which cannot fail) for non-UTF-8 legacy data."""
-    if data.startswith(b"\xef\xbb\xbf"):
-        data = data[3:]
-    try:
-        return data.decode("utf-8")
-    except UnicodeDecodeError:
-        return data.decode("latin-1")
-
-
 def parse(
     source: str | bytes,
     *,
@@ -201,10 +191,18 @@ def parse(
     max_depth: int = DEFAULT_MAX_DEPTH,
 ) -> Document:
     """Parse a vobject document (an iCalendar file, a vCard, or a stream of
-    several top-level components)."""
+    several top-level components).
+
+    Byte input is decoded as UTF-8 (a BOM is tolerated). In lenient mode
+    non-UTF-8 legacy data falls back to Latin-1 — byte-preserving — with a
+    :class:`Repair` recorded; in strict mode it is a :class:`ParseError`.
+    """
     if isinstance(source, bytes):
-        source = _decode(source)
-    elif source.startswith("﻿"):
+        components, repairs = _core_parse_bytes(
+            source, strict=strict, max_depth=max_depth
+        )
+        return Document(components=components, repairs=repairs)
+    if source.startswith("﻿"):
         source = source[1:]
     components, repairs = _core_parse(source, strict=strict, max_depth=max_depth)
     return Document(components=components, repairs=repairs)

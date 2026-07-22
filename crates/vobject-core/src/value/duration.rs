@@ -38,17 +38,29 @@ impl Duration {
         }
     }
 
+    /// Total seconds, or `None` if the magnitude overflows `i64`. `parse`
+    /// guarantees this is `Some` for any parsed duration.
+    pub fn checked_total_seconds(&self) -> Option<i64> {
+        let magnitude = self
+            .weeks
+            .checked_mul(7 * 86400)?
+            .checked_add(self.days.checked_mul(86400)?)?
+            .checked_add(self.hours.checked_mul(3600)?)?
+            .checked_add(self.minutes.checked_mul(60)?)?
+            .checked_add(self.seconds)?;
+        let magnitude = i64::try_from(magnitude).ok()?;
+        Some(if self.negative { -magnitude } else { magnitude })
+    }
+
+    /// Total seconds, saturating at `i64::MIN`/`i64::MAX` for directly
+    /// constructed values whose magnitude overflows (parsed durations never
+    /// do — see [`Duration::parse`]).
     pub fn total_seconds(&self) -> i64 {
-        let magnitude = (self.weeks * 7 * 86400
-            + self.days * 86400
-            + self.hours * 3600
-            + self.minutes * 60
-            + self.seconds) as i64;
-        if self.negative {
-            -magnitude
+        self.checked_total_seconds().unwrap_or(if self.negative {
+            i64::MIN
         } else {
-            magnitude
-        }
+            i64::MAX
+        })
     }
 
     /// Parse `[+/-] "P" (weeks / date-time parts)`.
@@ -106,8 +118,9 @@ impl Duration {
         if !number.is_empty() || !saw_component || (in_time && time_components == 0) {
             return Err(err());
         }
-        // Guard against overflow in total_seconds.
-        if duration.total_seconds().checked_abs().is_none()
+        // Reject anything whose total magnitude can't be represented, and
+        // keep the coarse fields inside u32 for interop.
+        if duration.checked_total_seconds().is_none()
             || duration.weeks > u32::MAX as u64
             || duration.days > u32::MAX as u64
         {

@@ -298,7 +298,7 @@ pub fn expand_rscale(
     };
 
     'periods: loop {
-        if year > max_year || empty_periods > limits.max_empty_periods.max(1) * 40 {
+        if year > max_year || empty_periods > limits.max_empty_periods.max(1) {
             break;
         }
         if let Some(count) = count_target {

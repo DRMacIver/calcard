@@ -11,10 +11,9 @@
 
 use crate::error::{ErrorKind, Repair, RepairKind};
 
-/// Escape a string as a single TEXT value.
-///
-/// `escape_commas` should be false only when the comma is structural (the
-/// caller is joining a multi-valued TEXT list and escapes each element).
+/// Escape a string as a single TEXT value (commas included; a caller
+/// joining a multi-valued TEXT list escapes each element and then joins
+/// with structural commas).
 pub fn escape_text(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {

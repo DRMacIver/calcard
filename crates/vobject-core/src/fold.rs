@@ -20,7 +20,6 @@ pub const FOLD_WIDTH: usize = 75;
 pub fn fold_into(out: &mut String, line: &str, width: usize, line_ending: &str) {
     let width = width.max(2);
     let mut budget = width;
-    let mut first = true;
     let mut current = String::new();
     for c in line.chars() {
         let len = c.len_utf8();
@@ -29,10 +28,6 @@ pub fn fold_into(out: &mut String, line: &str, width: usize, line_ending: &str) 
             out.push_str(line_ending);
             out.push(' ');
             current.clear();
-            if first {
-                first = false;
-            }
-            let _ = first;
             budget = width - 1; // the fold marker space consumed one octet
         }
         current.push(c);

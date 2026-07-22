@@ -122,7 +122,7 @@ impl<'a, 'r> LineParser<'a, 'r> {
         }
 
         let value = self.rest;
-        let value = self.check_text(value, false)?;
+        let value = self.check_text(value)?;
 
         Ok(Property {
             group: group.map(|g| g.to_string()),
@@ -242,14 +242,19 @@ impl<'a, 'r> LineParser<'a, 'r> {
     }
 
     /// Validate characters of a parameter value and caret-decode it.
+    ///
+    /// The RFC's stricter SAFE-CHAR/QSAFE-CHAR alphabets need no extra
+    /// checking here: the characters they exclude beyond controls (DQUOTE,
+    /// and `;:,` in unquoted values) are structural, so the line parser has
+    /// already either consumed them or diagnosed them (KeptStrayQuote).
     fn check_param_text(&mut self, s: &str) -> Result<String, ParseError> {
-        let s = self.check_text(s, true)?;
+        let s = self.check_text(s)?;
         Ok(caret_decode(&s))
     }
 
     /// Reject (strict) or keep-with-repair (lenient) control characters.
     /// HTAB is always permitted.
-    fn check_text(&mut self, s: &str, _param: bool) -> Result<String, ParseError> {
+    fn check_text(&mut self, s: &str) -> Result<String, ParseError> {
         for c in s.chars() {
             if c.is_control() && c != '\t' {
                 if !self.lenient() {

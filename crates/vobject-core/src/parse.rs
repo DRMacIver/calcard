@@ -95,7 +95,7 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
         };
 
         if prop.name.eq_ignore_ascii_case("BEGIN") {
-            match delimiter_name(&prop) {
+            match delimiter_name(&prop, loc, if lenient { Some(&mut repairs) } else { None }) {
                 Some(name) => {
                     if stack.len() >= options.max_depth {
                         if lenient {
@@ -130,7 +130,8 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
         }
 
         if prop.name.eq_ignore_ascii_case("END") {
-            let name = match delimiter_name(&prop) {
+            let name = match delimiter_name(&prop, loc, if lenient { Some(&mut repairs) } else { None })
+            {
                 Some(n) => n,
                 None => {
                     if lenient {
@@ -193,9 +194,54 @@ pub fn parse(input: &str, options: &ParseOptions) -> Result<Parsed, ParseError> 
     })
 }
 
-/// The component name carried by a BEGIN/END line, if it is well formed
-/// (non-empty value, no parameters, no group).
-fn delimiter_name(prop: &Property) -> Option<String> {
+/// Parse a complete document from raw bytes.
+///
+/// The RFC default (and only strict) charset is UTF-8; a UTF-8 BOM is
+/// stripped transparently. In lenient mode non-UTF-8 input is decoded as
+/// Latin-1 — a total, byte-preserving decoding for legacy data — with a
+/// [`RepairKind::DecodedNonUtf8AsLatin1`] repair recorded at the first
+/// offending line; in strict mode it is an [`ErrorKind::InvalidUtf8`] error.
+pub fn parse_bytes(input: &[u8], options: &ParseOptions) -> Result<Parsed, ParseError> {
+    let input = input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(input);
+    match std::str::from_utf8(input) {
+        Ok(s) => parse(s, options),
+        Err(e) => {
+            let line = 1 + input[..e.valid_up_to()]
+                .iter()
+                .filter(|&&b| b == b'\n')
+                .count();
+            if options.strictness == Strictness::Strict {
+                return Err(ParseError {
+                    location: Location { line },
+                    kind: ErrorKind::InvalidUtf8,
+                });
+            }
+            let decoded: String = input.iter().map(|&b| b as char).collect();
+            let mut parsed = parse(&decoded, options)?;
+            parsed.repairs.insert(
+                0,
+                Repair {
+                    location: Location { line },
+                    kind: RepairKind::DecodedNonUtf8AsLatin1,
+                },
+            );
+            Ok(parsed)
+        }
+    }
+}
+
+/// The component name carried by a BEGIN/END line.
+///
+/// Strictly well formed means: no parameters, no group, and a non-empty
+/// name with no surrounding whitespace. In lenient mode a group prefix
+/// (e.g. sabre tests' `home.begin:vcard`) or stray whitespace is normalized
+/// away with a recorded repair; in strict mode both are errors, keeping the
+/// zero-repairs ⟺ strictly-valid invariant honest.
+fn delimiter_name(
+    prop: &Property,
+    loc: Location,
+    repairs: Option<&mut Vec<Repair>>,
+) -> Option<String> {
     if !prop.params.is_empty() {
         return None;
     }
@@ -203,8 +249,15 @@ fn delimiter_name(prop: &Property) -> Option<String> {
     if name.is_empty() {
         return None;
     }
-    // A group on BEGIN (e.g. sabre tests `home.begin:vcard`) is unusual but
-    // harmless; we ignore the group rather than reject.
+    if prop.group.is_some() || name != prop.value {
+        match repairs {
+            Some(repairs) => repairs.push(Repair {
+                location: loc,
+                kind: RepairKind::NormalizedDelimiter(name.to_string()),
+            }),
+            None => return None,
+        }
+    }
     Some(name.to_string())
 }
 

@@ -6,3 +6,5 @@ dist/
 *.egg-info/
 .hypothesis/
 .hegel/
+.coverage
+.claude/

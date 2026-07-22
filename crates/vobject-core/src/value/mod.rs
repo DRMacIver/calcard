@@ -15,7 +15,7 @@ use std::fmt;
 
 pub use datetime::{Date, DateOrDateTime, DateTime, Time, UtcOffset, Weekday};
 pub use duration::{Duration, Period, PeriodEnd};
-pub use recur::{Frequency, Recur, Until, WeekdayNum};
+pub use recur::{Frequency, Recur, RecurMonth, Skip, Until, WeekdayNum};
 
 use crate::escape::{escape_text, split_unescaped, unescape_text};
 use crate::model::Property;

@@ -19,8 +19,11 @@ use crate::value::{DateOrDateTime, ValueError};
 /// Hard safety limits for expansion.
 #[derive(Debug, Clone, Copy)]
 pub struct ExpandLimits {
-    /// Stop after this many consecutive periods yield no candidate
+    /// Stop after this many consecutive periods yield no emitted instance
     /// (a rule like FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30 never matches).
+    /// Applied literally: the default is sized so that legitimately sparse
+    /// rules (e.g. FREQ=SECONDLY with a BYMINUTE filter, or FREQ=DAILY with
+    /// a single BYMONTH) stay well inside it.
     pub max_empty_periods: usize,
     /// Absolute cap on years scanned past DTSTART.
     pub max_years: i32,
@@ -29,11 +32,16 @@ pub struct ExpandLimits {
 impl Default for ExpandLimits {
     fn default() -> ExpandLimits {
         ExpandLimits {
-            max_empty_periods: 200,
+            max_empty_periods: 10_000,
             max_years: 2200,
         }
     }
 }
+
+/// Intervals above this behave identically (at most one instance fits in
+/// the representable year range whatever the frequency), and clamping keeps
+/// every step computation comfortably inside i64.
+const MAX_INTERVAL: u64 = 400_000_000_000;
 
 #[derive(Debug, Clone)]
 struct Config {
@@ -158,7 +166,7 @@ impl Config {
             };
             return Ok(Config {
                 freq,
-                interval: recur.interval() as i64,
+                interval: recur.interval().min(MAX_INTERVAL) as i64,
                 count: recur.count,
                 until,
                 by_month,
@@ -227,7 +235,7 @@ impl Config {
 
         Ok(Config {
             freq,
-            interval: recur.interval() as i64,
+            interval: recur.interval().min(MAX_INTERVAL) as i64,
             count: recur.count,
             until,
             by_month,
@@ -285,34 +293,36 @@ impl Config {
     }
 }
 
-/// Start of "week 1" of `year`: the first WKST-started week with at least
-/// four days in the year.
-fn week1_start(year: i32, wkst: Weekday) -> Date {
+/// Ordinal of the start of "week 1" of `year`: the first WKST-started week
+/// with at least four days in the year. Pure ordinal math, so it is total
+/// even for `year` just outside the representable Date range (needed when
+/// week arithmetic peeks at the year after 9999).
+fn week1_start_ordinal(year: i32, wkst: Weekday) -> i64 {
     let jan1 = Date {
         year,
         month: 1,
         day: 1,
     };
     let since_wkst = (jan1.weekday().number0() + 7 - wkst.number0()) % 7;
-    let candidate = jan1.add_days(-(since_wkst as i64)).unwrap();
+    let candidate = jan1.to_ordinal() - since_wkst as i64;
     if 7 - since_wkst >= 4 {
         candidate
     } else {
-        candidate.add_days(7).unwrap()
+        candidate + 7
     }
 }
 
 fn weeks_in_year(year: i32, wkst: Weekday) -> i64 {
-    (week1_start(year + 1, wkst).to_ordinal() - week1_start(year, wkst).to_ordinal()) / 7
+    (week1_start_ordinal(year + 1, wkst) - week1_start_ordinal(year, wkst)) / 7
 }
 
 /// The week-based year a date belongs to (its ISO year, generalized to an
 /// arbitrary week start).
 fn week_year(date: Date, wkst: Weekday) -> i32 {
     let y = date.year;
-    if date.to_ordinal() >= week1_start(y + 1, wkst).to_ordinal() {
+    if date.to_ordinal() >= week1_start_ordinal(y + 1, wkst) {
         y + 1
-    } else if date.to_ordinal() < week1_start(y, wkst).to_ordinal() {
+    } else if date.to_ordinal() < week1_start_ordinal(y, wkst) {
         y - 1
     } else {
         y
@@ -326,7 +336,7 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
     if !cfg.by_week_no.is_empty() {
         // Selected weeks (whole weeks; may spill into adjacent years).
         let nweeks = weeks_in_year(year, cfg.wkst);
-        let w1 = week1_start(year, cfg.wkst);
+        let w1 = week1_start_ordinal(year, cfg.wkst);
         let mut selected: Vec<i64> = Vec::new();
         for &wn in &cfg.by_week_no {
             let w = if wn > 0 {
@@ -341,9 +351,14 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
         selected.sort_unstable();
         selected.dedup();
         for w in selected {
-            let start = w1.add_days((w - 1) * 7).unwrap();
+            let start = w1 + (w - 1) * 7;
             for i in 0..7 {
-                let d = start.add_days(i).unwrap();
+                // Days outside the representable range (a first week
+                // starting before year 0, or a final week spilling beyond
+                // year 9999) simply aren't occurrences.
+                let Ok(d) = Date::from_ordinal(start + i) else {
+                    continue;
+                };
                 // Within selected weeks, BYDAY limits by weekday; other
                 // BY-day rules and BYMONTH also limit.
                 if !cfg.by_day.is_empty()
@@ -400,7 +415,9 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
     };
     let n_days = Date::days_in_year(year) as i64;
     for i in 0..n_days {
-        let d = jan1.add_days(i).unwrap();
+        let Ok(d) = jan1.add_days(i) else {
+            break;
+        };
         if !cfg.by_month.is_empty() && !cfg.by_month.contains(&d.month) {
             continue;
         }
@@ -451,8 +468,8 @@ fn nth_weekday_of_year(year: i32, wd: Weekday, n: i8) -> Option<Date> {
     };
     let n_days = Date::days_in_year(year) as i64;
     if n > 0 {
-        let first = jan1.add_days(jan1.weekday().days_until(wd) as i64).unwrap();
-        let d = first.add_days((n as i64 - 1) * 7).unwrap();
+        let first = jan1.add_days(jan1.weekday().days_until(wd) as i64).ok()?;
+        let d = first.add_days((n as i64 - 1) * 7).ok()?;
         (d.year == year).then_some(d)
     } else {
         let dec31 = Date {
@@ -567,6 +584,16 @@ enum PeriodCursor {
     SubDaily { current: DateTime },
 }
 
+/// Cursor parking spot for "stepped past the representable date range":
+/// one past the last valid year, so every `> max_year` check trips.
+/// (Constructed directly; `Date` fields are unvalidated on literal
+/// construction and this value is never emitted.)
+const PAST_END: Date = Date {
+    year: 10_000,
+    month: 1,
+    day: 1,
+};
+
 impl RRuleIter {
     fn fill_from_days(&mut self, days: Vec<Date>) {
         let mut candidates: Vec<DateTime> = Vec::with_capacity(days.len() * self.cfg.times.len());
@@ -607,24 +634,33 @@ impl RRuleIter {
     /// Generate the next period's candidates into the buffer. Returns false
     /// when iteration must stop.
     fn advance_period(&mut self) -> bool {
-        let max_year = self.cfg.dtstart.date.year + self.limits.max_years;
+        // Dates cap at year 9999, so scanning past that is pointless
+        // whatever the configured max_years; a cursor stepped out of range
+        // is parked at PAST_END and stops here on the next call.
+        let max_year = self
+            .cfg
+            .dtstart
+            .date
+            .year
+            .saturating_add(self.limits.max_years)
+            .min(9999);
         match &mut self.cursor {
             PeriodCursor::Yearly { year } => {
                 if *year > max_year {
                     return false;
                 }
                 let days = yearly_days(&self.cfg, *year);
-                *year += self.cfg.interval as i32;
+                *year = year.saturating_add(i32::try_from(self.cfg.interval).unwrap_or(i32::MAX));
                 self.fill_from_days(days);
             }
             PeriodCursor::Monthly { year, month0 } => {
-                let y = *year + (*month0 / 12) as i32;
-                if y > max_year {
+                let y = *year as i64 + *month0 / 12;
+                if y > max_year as i64 {
                     return false;
                 }
                 let m = (*month0 % 12) as u8 + 1;
-                let days = monthly_days(&self.cfg, y, m);
-                *month0 += self.cfg.interval;
+                let days = monthly_days(&self.cfg, y as i32, m);
+                *month0 = month0.saturating_add(self.cfg.interval);
                 self.fill_from_days(days);
             }
             PeriodCursor::Weekly { week_start } => {
@@ -633,7 +669,11 @@ impl RRuleIter {
                 }
                 let mut days = Vec::new();
                 for i in 0..7 {
-                    let d = week_start.add_days(i).unwrap();
+                    // A final week may spill past year 9999; the excess
+                    // days simply aren't occurrences.
+                    let Ok(d) = week_start.add_days(i) else {
+                        break;
+                    };
                     if !self.cfg.by_day.iter().any(|&(_, w)| w == d.weekday()) {
                         continue;
                     }
@@ -642,7 +682,9 @@ impl RRuleIter {
                     }
                     days.push(d);
                 }
-                *week_start = week_start.add_days(7 * self.cfg.interval).unwrap();
+                *week_start = week_start
+                    .add_days(7 * self.cfg.interval)
+                    .unwrap_or(PAST_END);
                 self.fill_from_days(days);
             }
             PeriodCursor::Daily { day } => {
@@ -654,7 +696,7 @@ impl RRuleIter {
                 } else {
                     Vec::new()
                 };
-                *day = day.add_days(self.cfg.interval).unwrap();
+                *day = day.add_days(self.cfg.interval).unwrap_or(PAST_END);
                 self.fill_from_days(days);
             }
             PeriodCursor::SubDaily { current } => {
@@ -670,6 +712,12 @@ impl RRuleIter {
                 } * cfg.interval;
 
                 let mut out: Vec<DateTime> = Vec::new();
+                // Epoch of the next slot that could possibly match, when the
+                // current one was rejected by a filter whose next acceptance
+                // is computable; stepping one interval at a time through a
+                // large filtered gap would otherwise exhaust the
+                // empty-period budget on legitimate rules.
+                let mut jump_boundary: Option<i64> = None;
                 if cfg.day_passes_limits(cur.date) {
                     let h = cur.time.hour;
                     let m = cur.time.minute;
@@ -720,8 +768,34 @@ impl RRuleIter {
                             }
                         }
                     }
+                    if out.is_empty() {
+                        let day_start = cur.to_epoch_like()
+                            - (h as i64 * 3600 + m as i64 * 60 + s as i64);
+                        if !hour_ok {
+                            // Jump to the next allowed hour today, or the
+                            // start of the next day.
+                            jump_boundary =
+                                Some(match cfg.by_hour.iter().copied().filter(|&x| x > h).min() {
+                                    Some(nh) => day_start + nh as i64 * 3600,
+                                    None => day_start + 86400,
+                                });
+                        } else if !cfg.by_minute.is_empty()
+                            && !cfg.by_minute.contains(&m)
+                            && matches!(cfg.freq, Frequency::Minutely | Frequency::Secondly)
+                        {
+                            // Jump to the next allowed minute this hour, or
+                            // the next hour (whose own filters re-apply).
+                            let hour_start = day_start + h as i64 * 3600;
+                            jump_boundary = Some(
+                                match cfg.by_minute.iter().copied().filter(|&x| x > m).min() {
+                                    Some(nm) => hour_start + nm as i64 * 60,
+                                    None => hour_start + 3600,
+                                },
+                            );
+                        }
+                    }
                 } else {
-                    // Fast-forward to the first aligned step on a later day.
+                    // Fast-forward past the whole rejected day.
                     let day_end = DateTime {
                         date: cur.date,
                         time: Time {
@@ -731,14 +805,41 @@ impl RRuleIter {
                             utc: cfg.utc,
                         },
                     };
-                    let gap = day_end.to_epoch_like() - cur.to_epoch_like() + 1;
-                    let steps = (gap + step_seconds - 1) / step_seconds;
-                    let target = cur.to_epoch_like() + (steps - 1) * step_seconds;
-                    *current = epoch_like_to_datetime(target, cfg.utc);
+                    jump_boundary = Some(day_end.to_epoch_like() + 1);
                 }
 
+                if let Some(boundary) = jump_boundary {
+                    // Move to the last DTSTART-aligned step strictly before
+                    // the boundary; the shared step below then lands on the
+                    // first aligned step at or past it.
+                    let gap = boundary - cur.to_epoch_like();
+                    if gap > 0 {
+                        let steps = (gap + step_seconds - 1) / step_seconds;
+                        let target = cur.to_epoch_like() + (steps - 1) * step_seconds;
+                        *current = epoch_like_to_datetime(target, cfg.utc);
+                    }
+                }
+
+                let max_epoch = Date {
+                    year: 9999,
+                    month: 12,
+                    day: 31,
+                }
+                .to_ordinal()
+                    * 86400
+                    + 86399;
                 let next = current.to_epoch_like() + step_seconds;
-                *current = epoch_like_to_datetime(next, cfg.utc);
+                if next > max_epoch {
+                    // Past the representable range: park the cursor so the
+                    // next call terminates instead of spinning on the
+                    // saturated conversion.
+                    *current = DateTime {
+                        date: PAST_END,
+                        time: cur.time,
+                    };
+                } else {
+                    *current = epoch_like_to_datetime(next, cfg.utc);
+                }
                 self.apply_setpos_and_buffer(out);
             }
         }
@@ -780,7 +881,6 @@ impl Iterator for RRuleIter {
         loop {
             match self.buffer.pop() {
                 Some(dt) => {
-                    self.empty_periods = 0;
                     // Global filters: >= DTSTART, strictly increasing,
                     // <= UNTIL.
                     if dt.to_epoch_like() < self.cfg.dtstart.to_epoch_like() {
@@ -799,6 +899,12 @@ impl Iterator for RRuleIter {
                     }
                     self.last = Some(dt);
                     self.emitted += 1;
+                    // Only an actual emission resets the empty-period
+                    // budget: periods whose every candidate is filtered out
+                    // (e.g. duplicates of a saturated cursor) must still
+                    // count as empty or a pathological rule never
+                    // terminates.
+                    self.empty_periods = 0;
                     return Some(if self.cfg.date_only {
                         DateOrDateTime::Date(dt.date)
                     } else {
@@ -807,16 +913,13 @@ impl Iterator for RRuleIter {
                 }
                 None => {
                     self.empty_periods += 1;
-                    if self.empty_periods > self.limits.max_empty_periods.max(1) * 400 {
+                    if self.empty_periods > self.limits.max_empty_periods.max(1) {
                         self.done = true;
                         return None;
                     }
                     if !self.advance_period() {
                         self.done = true;
                         return None;
-                    }
-                    if !self.buffer.is_empty() {
-                        self.empty_periods = 0;
                     }
                 }
             }
@@ -900,7 +1003,7 @@ fn expand_gregorian(
             } else {
                 let wy = week_year(cfg.dtstart.date, cfg.wkst);
                 let week = (cfg.dtstart.date.to_ordinal()
-                    - week1_start(wy, cfg.wkst).to_ordinal())
+                    - week1_start_ordinal(wy, cfg.wkst))
                     / 7
                     + 1;
                 let nweeks = weeks_in_year(wy, cfg.wkst);
@@ -932,7 +1035,15 @@ fn expand_gregorian(
             let since_wkst =
                 (cfg.dtstart.date.weekday().number0() + 7 - cfg.wkst.number0()) % 7;
             PeriodCursor::Weekly {
-                week_start: cfg.dtstart.date.add_days(-(since_wkst as i64)).unwrap(),
+                // A DTSTART in the first days of year 0 can have its week
+                // start before the representable range; starting the cursor
+                // at DTSTART itself only forgoes earlier-in-week candidates
+                // that the >= DTSTART filter would drop anyway.
+                week_start: cfg
+                    .dtstart
+                    .date
+                    .add_days(-(since_wkst as i64))
+                    .unwrap_or(cfg.dtstart.date),
             }
         }
         Frequency::Daily => PeriodCursor::Daily {

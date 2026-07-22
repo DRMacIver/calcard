@@ -16,7 +16,7 @@
 //! 7. TEXT escaping, RFC 6868 caret encoding, and escaped-list splitting
 //!    are invertible.
 
-use hegel::generators::{self, Generator};
+use hegel::generators;
 use vobject_core::escape::{
     caret_decode, caret_encode, escape_text, split_unescaped, unescape_text,
 };
@@ -377,12 +377,20 @@ fn rrule_expansion_is_sane(tc: hegel::TestCase) {
     let count = tc.draw(generators::integers::<u8>().min_value(1).max_value(20));
     rule.push_str(&format!(";COUNT={count}"));
     if tc.draw(generators::booleans()) {
-        let interval = tc.draw(generators::integers::<u8>().min_value(1).max_value(5));
+        // Full-range intervals: hostile magnitudes (u64::MAX once wrapped a
+        // cast negative and panicked the stepper) must terminate cleanly,
+        // not just the polite 1..=5 ones.
+        let interval: u64 = if tc.draw(generators::booleans()) {
+            tc.draw(generators::integers::<u8>().min_value(1).max_value(5)) as u64
+        } else {
+            tc.draw(generators::integers::<u64>().min_value(1))
+        };
         rule.push_str(&format!(";INTERVAL={interval}"));
     }
     if tc.draw(generators::booleans()) {
         let day = tc.draw(generators::sampled_from(vec![
-            "MO", "TU", "WE", "TH", "FR", "SA", "SU", "1MO", "-1FR", "2TU", "-2SA",
+            "MO", "TU", "WE", "TH", "FR", "SA", "SU", "1MO", "-1FR", "2TU", "-2SA", "53MO",
+            "-53FR",
         ]));
         rule.push_str(&format!(";BYDAY={day}"));
     }
@@ -397,13 +405,40 @@ fn rrule_expansion_is_sane(tc: hegel::TestCase) {
         }
     }
     if tc.draw(generators::booleans()) {
+        let wn = tc.draw(generators::integers::<i8>().min_value(-53).max_value(53));
+        if wn != 0 {
+            rule.push_str(&format!(";BYWEEKNO={wn}"));
+        }
+    }
+    if tc.draw(generators::booleans()) {
+        let yd = tc.draw(generators::integers::<i16>().min_value(-366).max_value(366));
+        if yd != 0 {
+            rule.push_str(&format!(";BYYEARDAY={yd}"));
+        }
+    }
+    if tc.draw(generators::booleans()) {
+        let h = tc.draw(generators::integers::<u8>().max_value(23));
+        rule.push_str(&format!(";BYHOUR={h}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let m = tc.draw(generators::integers::<u8>().max_value(59));
+        rule.push_str(&format!(";BYMINUTE={m}"));
+    }
+    if tc.draw(generators::booleans()) {
         let sp = tc.draw(generators::integers::<i8>().min_value(-5).max_value(5));
         if sp != 0 {
             rule.push_str(&format!(";BYSETPOS={sp}"));
         }
     }
 
-    let year = tc.draw(generators::integers::<i32>().min_value(1970).max_value(2100));
+    // The full representable year range, weighted toward the modern era but
+    // deliberately including both edges (year-0 week math underflowed and
+    // year-9999 stepping overflowed before the hardening fixes).
+    let year = if tc.draw(generators::booleans()) {
+        tc.draw(generators::integers::<i32>().min_value(1970).max_value(2100))
+    } else {
+        tc.draw(generators::integers::<i32>().min_value(0).max_value(9999))
+    };
     let month = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
     let day = tc.draw(generators::integers::<u8>().min_value(1).max_value(28));
     let hour = tc.draw(generators::integers::<u8>().max_value(23));
@@ -458,5 +493,30 @@ fn split_unescaped_inverts_escaped_join(tc: hegel::TestCase) {
     // And each piece unescapes to the original.
     for (piece, original) in split.iter().zip(&pieces) {
         assert_eq!(&unescape_text(piece, None, 1).unwrap(), original);
+    }
+}
+
+/// DURATION parsing is total (never panics, on any string), and every
+/// accepted duration has a representable total_seconds that survives the
+/// display round trip.
+#[hegel::test(test_cases = 500)]
+fn duration_parse_is_total(tc: hegel::TestCase) {
+    use vobject_core::value::Duration;
+
+    // Half adversarial-but-shaped (digit runs that stress magnitude
+    // handling), half arbitrary text.
+    let s = if tc.draw(generators::booleans()) {
+        let sign = tc.draw(generators::sampled_from(vec!["", "-", "+"]));
+        let n = tc.draw(generators::integers::<u128>());
+        let unit = tc.draw(generators::sampled_from(vec!["W", "D", "H", "M", "S"]));
+        let t = if matches!(unit, "H" | "M" | "S") { "T" } else { "" };
+        format!("{sign}P{t}{n}{unit}")
+    } else {
+        tc.draw(generators::text().max_size(30))
+    };
+    if let Ok(d) = Duration::parse(&s) {
+        let total = d.checked_total_seconds().expect("parsed duration overflows");
+        let redisplayed = Duration::parse(&d.to_string()).unwrap();
+        assert_eq!(redisplayed.total_seconds(), total, "{s:?}");
     }
 }

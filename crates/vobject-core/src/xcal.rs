@@ -280,9 +280,16 @@ fn write_component(w: &mut W, comp_json: &Json, dialect: Dialect, vcard: bool) -
 }
 
 /// Serialize components to an xCal (`<icalendar>`) or xCard (`<vcards>`)
-/// document, chosen by the first component's kind.
+/// document, chosen by the components' kind. An XML document has a single
+/// root, so a stream mixing vCards with iCalendar components cannot be
+/// represented and is an error.
 pub fn to_xml(components: &[Component]) -> Result<String, XmlError> {
     let vcard = components.first().is_some_and(|c| c.is("VCARD"));
+    if components.iter().any(|c| c.is("VCARD") != vcard) {
+        return Err(XmlError::new(
+            "cannot mix vCard and iCalendar components in one xCal/xCard document",
+        ));
+    }
     let mut w = Writer::new(Vec::new());
     w.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))
         .map_err(|e| XmlError::new(e.to_string()))?;
@@ -315,6 +322,12 @@ struct XNode {
     children: Vec<XNode>,
 }
 
+/// Nesting cap for the XML reader, mirroring the wire parser's default
+/// `max_depth` rationale: no real document nests anywhere near this, and an
+/// uncapped depth bomb would blow the stack in the recursive tree walk and
+/// node drop (a hard abort, not a catchable panic).
+const MAX_XML_DEPTH: usize = 512;
+
 fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
     let mut reader = Reader::from_str(xml);
     // Text is kept verbatim: trimming would eat significant whitespace
@@ -328,6 +341,11 @@ fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
+                if stack.len() > MAX_XML_DEPTH {
+                    return Err(XmlError::new(
+                        "element nesting exceeds the supported depth limit",
+                    ));
+                }
                 let name = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
                 stack.push(XNode {
                     name,
@@ -495,9 +513,16 @@ fn recur_node_to_wire(node: &XNode) -> String {
 }
 
 fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlError> {
-    let name = node.name.to_ascii_uppercase();
+    // iCalendar-side groups are written as a dotted element name
+    // (`item1.x-email`); split it back apart. (vCard groups travel in the
+    // `group` parameter instead and override below.)
+    let (element_group, element_name) = match node.name.split_once('.') {
+        Some((g, n)) => (Some(g.to_string()), n),
+        None => (None, node.name.as_str()),
+    };
+    let name = element_name.to_ascii_uppercase();
     let mut params: Vec<Param> = Vec::new();
-    let mut group = None;
+    let mut group = element_group;
 
     let mut value_nodes: Vec<&XNode> = Vec::new();
     for child in &node.children {

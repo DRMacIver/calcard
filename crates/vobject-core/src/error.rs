@@ -146,8 +146,9 @@ pub enum RepairKind {
     KeptInvalidEscape(char),
     /// A raw control character was kept in a value.
     KeptControlCharacter(char),
-    /// Invalid UTF-8 bytes were replaced with U+FFFD.
-    ReplacedInvalidUtf8,
+    /// Byte input was not valid UTF-8 and was decoded as Latin-1 instead
+    /// (a total decoding that preserves every byte, unlike replacement).
+    DecodedNonUtf8AsLatin1,
     /// A quoted-printable soft line break continuation was joined.
     JoinedQuotedPrintable,
     /// The input started with a continuation line; the leading whitespace was
@@ -163,6 +164,9 @@ pub enum RepairKind {
     ClosedUnterminatedQuote,
     /// A double quote appeared inside an unquoted parameter value and was kept.
     KeptStrayQuote,
+    /// A BEGIN/END line outside the strict grammar (surrounding whitespace in
+    /// the name, or a group prefix) was normalized to the bare name.
+    NormalizedDelimiter(String),
 }
 
 impl fmt::Display for RepairKind {
@@ -184,8 +188,8 @@ impl fmt::Display for RepairKind {
             RepairKind::KeptControlCharacter(c) => {
                 write!(f, "kept raw control character {c:?}")
             }
-            RepairKind::ReplacedInvalidUtf8 => {
-                write!(f, "replaced invalid UTF-8 with U+FFFD")
+            RepairKind::DecodedNonUtf8AsLatin1 => {
+                write!(f, "input was not valid UTF-8; decoded as Latin-1")
             }
             RepairKind::JoinedQuotedPrintable => {
                 write!(f, "joined quoted-printable soft line break")
@@ -205,6 +209,90 @@ impl fmt::Display for RepairKind {
             RepairKind::KeptStrayQuote => {
                 write!(f, "kept stray double quote in parameter value")
             }
+            RepairKind::NormalizedDelimiter(n) => {
+                write!(f, "normalized malformed BEGIN/END line to {n}")
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The human-readable messages are public API (they surface in Python
+    /// exceptions); every variant must format sensibly.
+    #[test]
+    fn error_kind_display_is_total_and_nonempty() {
+        let kinds = [
+            ErrorKind::MissingColon,
+            ErrorKind::InvalidName("A B".into()),
+            ErrorKind::InvalidParamName("P!".into()),
+            ErrorKind::UnterminatedQuote,
+            ErrorKind::InvalidParamValue("v".into()),
+            ErrorKind::ControlCharacter('\u{1}'),
+            ErrorKind::BlankLine,
+            ErrorKind::LooseLineEnding,
+            ErrorKind::ContentOutsideComponent,
+            ErrorKind::MismatchedEnd {
+                expected: "VEVENT".into(),
+                found: "VTODO".into(),
+            },
+            ErrorKind::UnmatchedEnd("VCARD".into()),
+            ErrorKind::UnterminatedComponent("VCALENDAR".into()),
+            ErrorKind::MalformedDelimiter,
+            ErrorKind::InvalidEscape('x'),
+            ErrorKind::InvalidUtf8,
+            ErrorKind::LeadingContinuation,
+            ErrorKind::TooDeeplyNested,
+        ];
+        for kind in kinds {
+            let err = ParseError {
+                location: Location { line: 7 },
+                kind,
+            };
+            let s = err.to_string();
+            assert!(s.starts_with("line 7: "), "{s}");
+            assert!(s.len() > "line 7: ".len(), "{s}");
+        }
+        assert_eq!(
+            ParseError {
+                location: Location { line: 3 },
+                kind: ErrorKind::MissingColon,
+            }
+            .to_string(),
+            "line 3: content line has no ':' separator"
+        );
+    }
+
+    #[test]
+    fn repair_kind_display_is_total_and_nonempty() {
+        let kinds = [
+            RepairKind::DroppedLine(ErrorKind::MissingColon),
+            RepairKind::SkippedBlankLine,
+            RepairKind::LooseLineEnding,
+            RepairKind::ClosedUnterminatedComponent("VEVENT".into()),
+            RepairKind::IgnoredUnmatchedEnd("VTODO".into()),
+            RepairKind::DroppedContentOutsideComponent,
+            RepairKind::KeptInvalidEscape('q'),
+            RepairKind::KeptControlCharacter('\u{2}'),
+            RepairKind::DecodedNonUtf8AsLatin1,
+            RepairKind::JoinedQuotedPrintable,
+            RepairKind::LeadingContinuationTreatedAsLine,
+            RepairKind::BareParameter("HOME".into()),
+            RepairKind::NonstandardName("X_ABC".into()),
+            RepairKind::ClosedUnterminatedQuote,
+            RepairKind::KeptStrayQuote,
+            RepairKind::NormalizedDelimiter("VCALENDAR".into()),
+        ];
+        for kind in kinds {
+            let repair = Repair {
+                location: Location { line: 2 },
+                kind,
+            };
+            let s = repair.to_string();
+            assert!(s.starts_with("line 2: "), "{s}");
+            assert!(s.len() > "line 2: ".len(), "{s}");
         }
     }
 }

@@ -206,8 +206,29 @@ fn parse_int_list<T: std::str::FromStr + Copy + PartialOrd>(
     Ok(out)
 }
 
+/// The RFC 5545/7529 rule parts, each of which may appear at most once.
+const KNOWN_PARTS: [&str; 16] = [
+    "FREQ",
+    "UNTIL",
+    "COUNT",
+    "INTERVAL",
+    "BYSECOND",
+    "BYMINUTE",
+    "BYHOUR",
+    "BYDAY",
+    "BYMONTHDAY",
+    "BYYEARDAY",
+    "BYWEEKNO",
+    "BYMONTH",
+    "BYSETPOS",
+    "WKST",
+    "RSCALE",
+    "SKIP",
+];
+
 impl Recur {
-    /// The effective interval (default 1).
+    /// The effective interval (default 1). Zero is rejected at parse time;
+    /// the clamp only defends directly constructed values.
     pub fn interval(&self) -> u64 {
         self.interval.unwrap_or(1).max(1)
     }
@@ -220,6 +241,9 @@ impl Recur {
     pub fn parse(s: &str) -> Result<Recur, ValueError> {
         let mut recur = Recur::default();
         let mut seen_freq = false;
+        // RFC 5545: the same rule part must not be specified more than once
+        // (extension parts excepted, since their grammar is unknown).
+        let mut seen_parts: Vec<String> = Vec::new();
         // Tolerate a trailing ';' (seen in the wild; icalendar does too).
         let trimmed = s.strip_suffix(';').unwrap_or(s);
         if trimmed.is_empty() {
@@ -231,11 +255,14 @@ impl Recur {
                 .ok_or_else(|| ValueError::new(format!("RECUR part {part:?} has no '='")))?;
             let name_upper = name.trim().to_ascii_uppercase();
             let value = value.trim();
+            if KNOWN_PARTS.contains(&name_upper.as_str()) {
+                if seen_parts.contains(&name_upper) {
+                    return Err(ValueError::new(format!("duplicate {name_upper}")));
+                }
+                seen_parts.push(name_upper.clone());
+            }
             match name_upper.as_str() {
                 "FREQ" => {
-                    if seen_freq {
-                        return Err(ValueError::new("duplicate FREQ"));
-                    }
                     seen_freq = true;
                     recur.freq = Some(Frequency::parse(value)?);
                 }
@@ -254,11 +281,13 @@ impl Recur {
                     );
                 }
                 "INTERVAL" => {
-                    recur.interval = Some(
-                        value
-                            .parse()
-                            .map_err(|_| ValueError::new(format!("invalid INTERVAL {value:?}")))?,
-                    );
+                    let n: u64 = value
+                        .parse()
+                        .map_err(|_| ValueError::new(format!("invalid INTERVAL {value:?}")))?;
+                    if n == 0 {
+                        return Err(ValueError::new("INTERVAL must be a positive integer"));
+                    }
+                    recur.interval = Some(n);
                 }
                 "BYSECOND" => recur.by_second = parse_int_list(value, 0, 60, true, 0, "BYSECOND")?,
                 "BYMINUTE" => recur.by_minute = parse_int_list(value, 0, 59, true, 0, "BYMINUTE")?,
