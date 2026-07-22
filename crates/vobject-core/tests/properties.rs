@@ -317,6 +317,129 @@ fn caret_decode_is_total(tc: hegel::TestCase) {
     let _ = caret_decode(&s);
 }
 
+// ---------------------------------------------------------------------------
+// 8. Value layer and recurrence
+
+/// Value round-trip: parse a raw value as a type, serialize it back, parse
+/// again — must be identical (serialize∘parse is idempotent on its image).
+#[hegel::test(test_cases = 500)]
+fn typed_value_reparse_is_identity(tc: hegel::TestCase) {
+    use vobject_core::value::{parse_value, serialize_value, Multiplicity, TypeInfo, ValueType};
+    let vtype = tc.draw(generators::sampled_from(vec![
+        ValueType::Text,
+        ValueType::Date,
+        ValueType::DateTime,
+        ValueType::Duration,
+        ValueType::Period,
+        ValueType::Integer,
+        ValueType::Boolean,
+        ValueType::UtcOffset,
+        ValueType::Binary,
+    ]));
+    let multiplicity = if tc.draw(generators::booleans()) {
+        Multiplicity::Single
+    } else {
+        Multiplicity::CommaList
+    };
+    let info = TypeInfo {
+        vtype,
+        multiplicity,
+    };
+    // Values in the model come from unfolded content lines and can never
+    // contain a raw CR (it is a line terminator); a lone CR is documented
+    // as not representable in TEXT escaping.
+    let raw: String = tc
+        .draw(generators::text().max_size(60))
+        .chars()
+        .filter(|c| *c != '\r')
+        .collect();
+    if let Ok(value) = parse_value(&raw, info) {
+        let serialized = serialize_value(&value);
+        let reparsed = parse_value(&serialized, info).unwrap_or_else(|e| {
+            panic!("serialized form {serialized:?} of {value:?} failed to reparse: {e}")
+        });
+        assert_eq!(reparsed, value, "via {serialized:?}");
+    }
+}
+
+/// Every instance an RRULE expansion emits is on/after DTSTART, strictly
+/// increasing, bounded by COUNT, and never panics — for arbitrary rules.
+#[hegel::test(test_cases = 300)]
+fn rrule_expansion_is_sane(tc: hegel::TestCase) {
+    use vobject_core::rrule::{expand, ExpandLimits};
+    use vobject_core::value::{DateOrDateTime, Recur};
+
+    // Build a random-but-parseable rule.
+    let freq = tc.draw(generators::sampled_from(vec![
+        "SECONDLY", "MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY",
+    ]));
+    let mut rule = format!("FREQ={freq}");
+    let count = tc.draw(generators::integers::<u8>().min_value(1).max_value(20));
+    rule.push_str(&format!(";COUNT={count}"));
+    if tc.draw(generators::booleans()) {
+        let interval = tc.draw(generators::integers::<u8>().min_value(1).max_value(5));
+        rule.push_str(&format!(";INTERVAL={interval}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let day = tc.draw(generators::sampled_from(vec![
+            "MO", "TU", "WE", "TH", "FR", "SA", "SU", "1MO", "-1FR", "2TU", "-2SA",
+        ]));
+        rule.push_str(&format!(";BYDAY={day}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let m = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
+        rule.push_str(&format!(";BYMONTH={m}"));
+    }
+    if tc.draw(generators::booleans()) {
+        let md = tc.draw(generators::integers::<i8>().min_value(-31).max_value(31));
+        if md != 0 {
+            rule.push_str(&format!(";BYMONTHDAY={md}"));
+        }
+    }
+    if tc.draw(generators::booleans()) {
+        let sp = tc.draw(generators::integers::<i8>().min_value(-5).max_value(5));
+        if sp != 0 {
+            rule.push_str(&format!(";BYSETPOS={sp}"));
+        }
+    }
+
+    let year = tc.draw(generators::integers::<i32>().min_value(1970).max_value(2100));
+    let month = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
+    let day = tc.draw(generators::integers::<u8>().min_value(1).max_value(28));
+    let hour = tc.draw(generators::integers::<u8>().max_value(23));
+    let dtstart_s = format!("{year:04}{month:02}{day:02}T{hour:02}0000");
+    let dtstart = DateOrDateTime::parse(&dtstart_s).unwrap();
+
+    let recur = Recur::parse(&rule).unwrap();
+    let instances: Vec<_> = expand(&recur, dtstart, ExpandLimits::default())
+        .unwrap()
+        .take(count as usize + 5)
+        .collect();
+
+    assert!(
+        instances.len() <= count as usize,
+        "{rule} from {dtstart_s}: COUNT exceeded ({})",
+        instances.len()
+    );
+    let epochs: Vec<i64> = instances
+        .iter()
+        .map(|d| match d {
+            DateOrDateTime::Date(d) => d.to_ordinal() * 86400,
+            DateOrDateTime::DateTime(dt) => dt.to_epoch_like(),
+        })
+        .collect();
+    let start_epoch = match dtstart {
+        DateOrDateTime::Date(d) => d.to_ordinal() * 86400,
+        DateOrDateTime::DateTime(dt) => dt.to_epoch_like(),
+    };
+    for window in epochs.windows(2) {
+        assert!(window[0] < window[1], "{rule}: instances not increasing");
+    }
+    if let Some(first) = epochs.first() {
+        assert!(*first >= start_epoch, "{rule}: instance before DTSTART");
+    }
+}
+
 #[hegel::test(test_cases = 500)]
 fn split_unescaped_inverts_escaped_join(tc: hegel::TestCase) {
     let n = tc.draw(generators::integers::<usize>().min_value(1).max_value(6));
