@@ -15,6 +15,16 @@ classifiers = [
     "Programming Language :: Rust",
 ]
 
+[project.optional-dependencies]
+compat = [
+    "python-dateutil>=2.9.0",
+    "pytz>=2025.2",
+]
+
+[project.scripts]
+ics_diff = "vobject.ics_diff:main"
+change_tz = "vobject.change_tz:main"
+
 [tool.maturin]
 python-source = "python"
 module-name = "vobject._core"
@@ -25,6 +35,8 @@ dev = [
     "pytest>=8",
     "hypothesis>=6",
     "maturin>=1.11",
+    "python-dateutil>=2.9.0",
+    "pytz>=2025.2",
 ]
 
 [tool.pytest.ini_options]

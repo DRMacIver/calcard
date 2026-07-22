@@ -379,6 +379,16 @@ fn escape_text(text: &str) -> String {
     core::escape::escape_text(text)
 }
 
+/// Fold one logical line to physical lines (75-octet default), returning
+/// the folded text including the trailing line ending.
+#[pyfunction]
+#[pyo3(signature = (line, width = 75, line_ending = "\r\n"))]
+fn fold_line(line: &str, width: usize, line_ending: &str) -> String {
+    let mut out = String::new();
+    vobject_core::fold::fold_into(&mut out, line, width, line_ending);
+    out
+}
+
 /// Split a raw value on an unescaped separator (e.g. ',' or ';').
 #[pyfunction]
 fn split_unescaped(text: &str, separator: char) -> Vec<String> {
@@ -562,6 +572,7 @@ fn _core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(escape_text, m)?)?;
     m.add_function(wrap_pyfunction!(unescape_text, m)?)?;
     m.add_function(wrap_pyfunction!(split_unescaped, m)?)?;
+    m.add_function(wrap_pyfunction!(fold_line, m)?)?;
     m.add_function(wrap_pyfunction!(typed_value, m)?)?;
     m.add_function(wrap_pyfunction!(expand_rrule, m)?)?;
     m.add_function(wrap_pyfunction!(to_jcal_json, m)?)?;

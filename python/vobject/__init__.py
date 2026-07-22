@@ -62,6 +62,67 @@ __version__ = "0.1.0"
 
 DEFAULT_MAX_DEPTH = 512
 
+# --------------------------------------------------------------------------
+# py-vobject compatibility surface.
+#
+# The modules vobject.base, vobject.behavior, vobject.icalendar,
+# vobject.vcard, vobject.hcalendar, vobject.change_tz and vobject.ics_diff
+# provide a py-vobject 1.0-compatible API (their test suite runs against
+# this package; see tests_upstream/). They are loaded lazily so that the
+# clean API above has no hard dependency on python-dateutil/pytz.
+
+_PYVOBJECT_NAMES = ("readComponents", "readOne", "newFromBehavior", "VERSION")
+
+
+def _load_compat():
+    """Import the compat modules together: importing vobject.icalendar and
+    vobject.vcard registers their behaviors, which base.readComponents and
+    newFromBehavior rely on."""
+    import importlib
+
+    base = importlib.import_module("vobject.base")
+    importlib.import_module("vobject.icalendar")
+    importlib.import_module("vobject.vcard")
+    return base
+
+
+_COMPAT_MODULES = (
+    "base",
+    "behavior",
+    "icalendar",
+    "vcard",
+    "hcalendar",
+    "change_tz",
+    "ics_diff",
+)
+
+
+def __getattr__(name):
+    # `from . import x` inside the compat modules consults this hook before
+    # falling back to a submodule import, so it must be reentrancy-safe:
+    # return partially-initialized modules from sys.modules as-is.
+    if name in _COMPAT_MODULES:
+        import importlib
+        import sys
+
+        mod = sys.modules.get(f"vobject.{name}")
+        if mod is not None:
+            return mod
+        return importlib.import_module(f"vobject.{name}")
+    if name in _PYVOBJECT_NAMES:
+        return getattr(_load_compat(), name)
+    raise AttributeError(f"module 'vobject' has no attribute {name!r}")
+
+
+def iCalendar():
+    """py-vobject compatibility: a new VCALENDAR 2.0 component."""
+    return _load_compat().newFromBehavior("vcalendar", "2.0")
+
+
+def vCard():
+    """py-vobject compatibility: a new VCARD 3.0 component."""
+    return _load_compat().newFromBehavior("vcard", "3.0")
+
 
 @dataclass
 class Document:
