@@ -124,6 +124,13 @@ Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
       passes 58/58 (vendored under tests_upstream/pyvobject)
 - [x] icalendar compat (drop-in `icalendar` package): upstream suite
       passes 15,972 tests (ships inside python/icalendar/tests)
+- [x] RSCALE (RFC 7529) recurrence via ICU4X calendars: 34/34 libical
+      RSCALE cases (one Chinese leap-month case compared on the agreed
+      prefix — ICU4C and ICU4X diverge on century-out lunar predictions)
+- [x] Timezone-aware occurrence expansion with RFC 5545 DST semantics,
+      validated against sabre's DST-crossing expectations
+- [x] xCal (RFC 6321) / xCard (RFC 6351), corpus-validated to a
+      conversion fixed point
 
 ## Compatibility layer policy
 
@@ -137,14 +144,6 @@ from the core's lenient profile (icalendar's unfold keeps lone CRs, never
 joins vCard 2.1 QP soft breaks, and refuses to fold after a trailing
 escape). The robust, Rust-backed path is the clean `vobject` API; the
 compat layers exist to run existing code and its tests unchanged.
-
-- [x] RSCALE (RFC 7529) recurrence via ICU4X calendars: 34/34 libical
-      RSCALE cases (one Chinese leap-month case compared on the agreed
-      prefix — ICU4C and ICU4X diverge on century-out lunar predictions)
-- [x] Timezone-aware occurrence expansion with RFC 5545 DST semantics,
-      validated against sabre's DST-crossing expectations
-- [x] xCal (RFC 6321) / xCard (RFC 6351), corpus-validated to a
-      conversion fixed point
 
 ## Remaining ideas (post-1.0)
 

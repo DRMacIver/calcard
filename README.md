@@ -78,8 +78,11 @@ for cal in doc.calendars:
 ```
 
 `vobject.to_jcal()` produces jCal (RFC 7265) / jCard (RFC 7095), verified
-against ical.js's expected outputs. `vobject.expand_rrule()` exposes the
-RRULE engine, validated against libical's icalrecur expectations.
+against ical.js's expected outputs; `vobject.to_xcal()` / `from_xcal()`
+handle xCal (RFC 6321) / xCard (RFC 6351). `vobject.expand_rrule()`
+exposes the RRULE engine, validated against libical's icalrecur
+expectations, including RSCALE (RFC 7529) non-Gregorian rules via ICU4X
+and RFC 5545 DST semantics for zone-aware starts.
 
 ## Compatibility layers
 
@@ -96,8 +99,8 @@ See `DESIGN.md` for the compat-layer policy.
 
 ## Status
 
-Feature-complete for the 0.1 scope: lossless strict/lenient syntax layer,
-typed values, jCal/jCard, RRULE expansion, clean typed Python API, and
-both compatibility layers, all backed by the cross-implementation
-conformance corpus. `DESIGN.md` tracks the roadmap and the post-1.0 ideas
-(RSCALE, timezone-aware expansion, xCal/xCard).
+Feature-complete: lossless strict/lenient syntax layer, typed values,
+jCal/jCard and xCal/xCard, RRULE expansion (including RSCALE and DST-aware
+zone expansion), clean typed Python API, and both compatibility layers,
+all backed by the cross-implementation conformance corpus. `DESIGN.md`
+tracks the roadmap and remaining ideas.
