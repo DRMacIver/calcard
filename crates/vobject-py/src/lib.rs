@@ -124,7 +124,12 @@ impl Drop for Component {
         let mut stack = std::mem::take(&mut self.children);
         Python::attach(|py| {
             while let Some(obj) = stack.pop() {
-                if obj.get_refcnt(py) == 1 {
+                // SAFETY: `obj.as_ptr()` is a valid, owned object pointer
+                // for the duration of the call (Py_REFCNT only reads the
+                // refcount field). This is the replacement pyo3 recommends
+                // for its deprecated safe get_refcnt wrappers.
+                let refcnt = unsafe { pyo3::ffi::Py_REFCNT(obj.as_ptr()) };
+                if refcnt == 1 {
                     if let Ok(comp) = obj.cast_bound::<Component>(py) {
                         if let Ok(mut inner) = comp.try_borrow_mut() {
                             stack.append(&mut inner.children);

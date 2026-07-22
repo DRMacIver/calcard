@@ -7,13 +7,28 @@ name = "vobject-rs"
 version = "0.1.0"
 description = "Robust iCalendar and vCard parsing and serialization, backed by a Rust core"
 readme = "README.md"
-license = "MIT"
+license = "MIT AND Apache-2.0 AND BSD-2-Clause"
+license-files = ["LICENSE", "LICENSES/*"]
+authors = [{ name = "David R. MacIver", email = "david@drmaciver.com" }]
+keywords = ["icalendar", "vcard", "ical", "rfc5545", "rfc6350", "jcal", "xcal", "rrule"]
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Rust",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Text Processing :: Markup",
 ]
+
+[project.urls]
+Repository = "https://github.com/DRMacIver/vobject"
 
 [project.optional-dependencies]
 compat = [
@@ -30,6 +45,10 @@ python-source = "python"
 module-name = "vobject._core"
 python-packages = ["vobject", "icalendar"]
 manifest-path = "crates/vobject-py/Cargo.toml"
+# The icalendar compat package deliberately ships its upstream test suite
+# (see DESIGN.md) and the upstream_docs tree those tests doctest against,
+# but not upstream's fuzz corpus.
+exclude = ["python/icalendar/fuzzing/**"]
 
 [dependency-groups]
 dev = [

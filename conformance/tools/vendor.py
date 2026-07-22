@@ -101,6 +101,10 @@ def vendor_icaljs(repo: Path, out: Path) -> list[str]:
     lines.append(f"- `samples/*.ics` -> `samples/` ({n} files)")
     n = copy_tree(repo / "samples" / "timezones", out / "samples" / "timezones")
     lines.append(f"- `samples/timezones/` -> `samples/timezones/` ({n} files)")
+    lines.append(
+        "- (recurrence expectations: tools/extract_icaljs_recur.py produces "
+        "`recur/cases.json`)"
+    )
     return lines
 
 
@@ -171,7 +175,7 @@ def vendor_sabre(repo: Path, out: Path) -> list[str]:
     lines.append(f"- standalone fixtures -> `samples/` ({n} files)")
     lines.append(
         "- (the bulk of sabre's test data is embedded in PHP test classes; "
-        "see tools/extract_sabre.py once written)"
+        "tools/extract_sabre.py extracts it into `sabre-vobject/extracted/`)"
     )
     return lines
 

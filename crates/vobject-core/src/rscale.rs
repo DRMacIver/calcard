@@ -53,7 +53,7 @@ fn to_icu_iso(d: Date) -> Result<IcuDate<Iso>, ValueError> {
 
 fn from_icu_iso(d: IcuDate<Iso>) -> Result<Date, ValueError> {
     Date::new(
-        d.extended_year(),
+        d.year().extended_year(),
         d.month().ordinal,
         d.day_of_month().0,
     )
@@ -87,14 +87,14 @@ impl<'c> Engine<'c> {
                     IcuMonth::new(number)
                 };
                 if let Ok(date) = IcuDate::try_new(ext_year.into(), month, 1, self.cal) {
-                    if date.extended_year() != ext_year {
+                    if date.year().extended_year() != ext_year {
                         continue;
                     }
                     slots.push(MonthSlot {
                         month,
                         ordinal: date.month().ordinal,
                         days: date.days_in_month(),
-                        first_iso: from_icu_iso(date.to_iso())?.to_ordinal(),
+                        first_iso: from_icu_iso(date.to_calendar(Iso))?.to_ordinal(),
                     });
                 }
             }
@@ -311,7 +311,7 @@ pub fn expand_rscale(
     }
     .to_epoch_like();
     let start_r = to_icu_iso(start_date)?.to_calendar(Ref(&cal));
-    let start_year = start_r.extended_year();
+    let start_year = start_r.year().extended_year();
     let start_month = RecurMonth {
         month: start_r.month().number(),
         leap: start_r.month().to_input().is_leap(),

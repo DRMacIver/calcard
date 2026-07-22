@@ -56,15 +56,21 @@ let out = write_document(&parsed.components, &Default::default());
 | --- | --- |
 | `crates/vobject-core` | Pure-Rust implementation (no Python dependencies) |
 | `crates/vobject-py` | PyO3 bindings (`vobject._core`) |
-| `python/vobject` | The Python package |
+| `python/vobject` | The Python package (clean API + py-vobject compat modules) |
+| `python/icalendar` | Vendored icalendar compat package, incl. its upstream test suite |
 | `tests/` | Python test suite (pytest + Hypothesis) |
+| `tests_upstream/` | Vendored py-vobject upstream test suite |
 | `conformance/` | Vendored reference test data and tooling |
 | `DESIGN.md` | Architecture and roadmap |
 
 ## Development
 
-Rust: `cargo test`. Python: `uv sync && uv run pytest`. After changing Rust
-code, rebuild the extension with `uv sync --reinstall-package vobject-rs`.
+Rust: `cargo test`. Python: `uv sync && uv run pytest` (the clean-API
+suite; the compatibility suites run with
+`uv run pytest tests_upstream/pyvobject python/icalendar/tests`). After
+changing Rust code, rebuild the extension with
+`uv sync --reinstall-package vobject-rs`. CI (`.github/workflows/ci.yml`)
+runs all four suites.
 
 ## Typed views and recurrence
 
@@ -77,12 +83,13 @@ for cal in doc.calendars:
             print("  ", occurrence)
 ```
 
-`vobject.to_jcal()` produces jCal (RFC 7265) / jCard (RFC 7095), verified
-against ical.js's expected outputs; `vobject.to_xcal()` / `from_xcal()`
-handle xCal (RFC 6321) / xCard (RFC 6351). `vobject.expand_rrule()`
-exposes the RRULE engine, validated against libical's icalrecur
-expectations, including RSCALE (RFC 7529) non-Gregorian rules via ICU4X
-and RFC 5545 DST semantics for zone-aware starts.
+`vobject.to_jcal()` / `from_jcal()` handle jCal (RFC 7265) / jCard
+(RFC 7095), verified against ical.js's expected outputs;
+`vobject.to_xcal()` / `from_xcal()` handle xCal (RFC 6321) / xCard
+(RFC 6351). `vobject.expand_rrule()` exposes the RRULE engine, validated
+against libical's icalrecur expectations, including RSCALE (RFC 7529)
+non-Gregorian rules via ICU4X and RFC 5545 DST semantics for zone-aware
+starts.
 
 ## Compatibility layers
 

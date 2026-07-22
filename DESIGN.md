@@ -29,9 +29,15 @@ as a standalone Rust crate with Python bindings.
 Cargo.toml                  workspace
 crates/vobject-core/        pure-Rust implementation, no Python deps
 crates/vobject-py/          PyO3 bindings (cdylib, built by maturin)
-python/vobject/             Python package (clean API + compat layers)
-python/vobject/compat/      py-vobject and icalendar compatibility modules
+python/vobject/             Python package: clean API (typed.py, values.py,
+                            __init__.py) plus the py-vobject compat modules
+                            (base.py, icalendar.py, vcard.py, ...)
+python/icalendar/           vendored icalendar compat package (its upstream
+                            suite ships in python/icalendar/tests; the
+                            src/icalendar/tests symlink keeps upstream
+                            repo-relative fixture paths working)
 tests/                      Python test suite (pytest + Hypothesis)
+tests_upstream/pyvobject/   vendored py-vobject test suite
 conformance/fixtures/       vendored test data from reference implementations
 conformance/tools/          scripts that fetch/refresh vendored data
 ```
@@ -57,37 +63,40 @@ Layered:
   Lenient }`; lenient mode records `Repair`s (e.g. unclosed component,
   stray END, bad line) instead of failing.
 - `write`: canonical serializer (folding, escaping, deterministic
-  parameter formatting) with options (line ending, fold width, vCard 2.1
-  compat).
-- `rrule` (later phase): RRULE occurrence expansion, validated against
-  libical's icalrecur expected-output data.
+  parameter formatting) with options (line ending, fold width). Known
+  limitation: a lone CR inside a model TEXT or parameter value has no wire
+  representation and serializes as an escaped newline.
+- `rrule`: RRULE occurrence expansion, validated against libical's
+  icalrecur expected-output data; `rscale` evaluates RFC 7529 rules in
+  their recurrence calendar via ICU4X.
 
 Errors are typed, carry line numbers, and never panic on any input —
-enforced by fuzz-style property tests.
+enforced by fuzz-style property tests (with generators covering hostile
+magnitudes and the edges of the representable year range, not just
+polite values).
 
 ## Python distribution
 
-Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
-`vobject._core` is the compiled module; the public package is Python.
+Distribution name `vobject-rs` (import name `vobject`), built with maturin
+(mixed Rust/Python layout). `vobject._core` is the compiled module; the
+public package is Python.
 
-- `vobject` — the clean modern API. Design sketch (to be refined against
-  the reference-API research):
-  - `vobject.parse(text_or_bytes) -> Document`, `vobject.parse_one(...)`
-  - Typed components: `Calendar`, `Event`, `Todo`, `Journal`, `Alarm`,
-    `Timezone`, `Card`; generic `Component` for everything else.
-  - Properties are rich objects; `.value` returns native Python types
-    (str, datetime/date with zoneinfo tzinfo, timedelta, …); raw text
-    always accessible.
-  - Iteration/`in`/indexing follow modern Python conventions; no magic
-    attribute soup, but convenient named accessors on typed components
-    (`event.start`, `event.uid`, `card.fn`).
-  - `document.serialize() -> str` / `.serialize_bytes()`.
-- `vobject.compat.pyvobject` — py-vobject-compatible API
-  (`readComponents`, `readOne`, attribute access, behaviors). Upstream test
-  suite is run against it via a `sys.modules["vobject"]` alias harness in
-  `conformance/`.
-- `vobject.compat.icalendar` — icalendar-compatible API (`Calendar.from_ical`,
-  prop types, `to_ical`). Same aliasing harness for its upstream suite.
+- `vobject` — the clean modern API:
+  - `vobject.parse(text_or_bytes) -> Document`, `vobject.parse_one(...)`.
+    Byte input is UTF-8; in lenient mode non-UTF-8 legacy data is decoded
+    as Latin-1 with a recorded `Repair`.
+  - Typed component views: `Calendar`, `Event`, `Todo`, `Journal`,
+    `Alarm`, `Timezone`, `FreeBusy`, `Card`, with named accessors
+    (`event.start`, `event.uid`, `card.fn`) and `native_value` for rich
+    Python types; the lossless `Component`/`Property` model underneath.
+  - `document.serialize() -> str`; `to_jcal`/`from_jcal`,
+    `to_xcal`/`from_xcal`, `expand_rrule`.
+- py-vobject compatibility lives directly in `vobject.base`,
+  `vobject.icalendar`, `vobject.vcard`, `vobject.hcalendar`,
+  `vobject.change_tz`, `vobject.ics_diff` (loaded lazily; the vendored
+  upstream suite runs from `tests_upstream/pyvobject`).
+- icalendar compatibility is the top-level `python/icalendar` package
+  (adapted from upstream 7.2.2; its own suite runs against it in place).
 
 ## Testing strategy
 
@@ -113,7 +122,9 @@ Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
 - [x] hegel-rust property tests; fuzz-ish "never panic" tests
 - [x] Vendored conformance corpus + runner (~590 files incl. 446 extracted
       from sabre/vobject's PHP tests)
-- [x] jCal/jCard conversion matching all 26 ical.js expected-output pairs
+- [x] jCal/jCard conversion matching all 26 ical.js expected-output pairs,
+      plus jCal/jCard parsing (`from_jcal`) with a corpus-validated
+      to_jcal ∘ from_jcal fixed point
 - [x] RRULE expansion engine: 145/146 libical cases (the last is marked
       UNIMPLEMENTED by libical itself); 119/127 ical.js cases with the 8
       exceptions documented as ical.js deviations from RFC 5545
@@ -136,14 +147,18 @@ Distribution name `vobject`, built with maturin (mixed Rust/Python layout).
 
 The compat layers are adapted from their upstream projects (attributed in
 LICENSES/ and in file headers / VENDORED-NOTICE.txt): upstream code is the
-authoritative specification of the behavior their test suites check, and
-bug-for-bug parity is the compat contract. Delegation to the Rust core is
-done where behavior is provably identical (py-vobject's standard-width
-folding); it is deliberately *not* done where upstream semantics differ
-from the core's lenient profile (icalendar's unfold keeps lone CRs, never
-joins vCard 2.1 QP soft breaks, and refuses to fold after a trailing
-escape). The robust, Rust-backed path is the clean `vobject` API; the
-compat layers exist to run existing code and its tests unchanged.
+authoritative specification of the behavior their test suites check.
+Deliberate upstream *semantics* are preserved even where the core differs
+(icalendar's unfold keeps lone CRs, never joins vCard 2.1 QP soft breaks,
+and refuses to fold after a trailing escape); delegation to the Rust core
+is done where behavior is provably identical (py-vobject's standard-width
+folding). Obvious upstream *defects* are fixed rather than reproduced —
+debug prints in library code, dead py2 fallbacks that churned exceptions,
+a py3 `filter()` iterator stored where a list was needed, invalid HTML
+attribute syntax in hcalendar output, and the ics_diff engine dropping
+right-side components — each with regression tests in `tests/`. The
+robust, Rust-backed path is the clean `vobject` API; the compat layers
+exist to run existing code and its tests unchanged.
 
 ## Remaining ideas (post-1.0)
 

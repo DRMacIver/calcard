@@ -21,6 +21,7 @@ Vendored by `conformance/tools/vendor.py`. Do not edit files under
 - `test/parser/` -> `parser/` (52 files: ics/vcf inputs with expected jCal/jCard JSON)
 - `samples/*.ics` -> `samples/` (18 files)
 - `samples/timezones/` -> `samples/timezones/` (7 files)
+- (recurrence expectations: tools/extract_icaljs_recur.py produces `recur/cases.json`)
 
 ## sabre-vobject
 
@@ -28,5 +29,5 @@ Vendored by `conformance/tools/vendor.py`. Do not edit files under
 - Commit: 2533eb0d67b2030e4f2bdacac972beb556d50e0d
 - License: BSD-3-Clause (see `fixtures/sabre-vobject/LICENSE`)
 - standalone fixtures -> `samples/` (3 files)
-- (the bulk of sabre's test data is embedded in PHP test classes; see tools/extract_sabre.py once written)
+- (the bulk of sabre's test data is embedded in PHP test classes; tools/extract_sabre.py extracts it into `sabre-vobject/extracted/`)
 
