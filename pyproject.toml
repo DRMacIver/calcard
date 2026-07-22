@@ -28,7 +28,7 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/DRMacIver/vobject"
+Repository = "https://github.com/DRMacIver/calcard"
 
 [tool.maturin]
 python-source = "python"
