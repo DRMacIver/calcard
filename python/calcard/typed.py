@@ -31,22 +31,25 @@ __all__ = [
 def _wire_datetime(value: _dt.date | _dt.datetime) -> tuple[str, list[Param]]:
     """Serialize a date/datetime to wire text plus the parameters it needs.
 
-    Naive datetimes become floating local time; a zero UTC offset becomes
-    the ``Z`` form; a tzinfo with a zone name (zoneinfo ``.key`` or
-    pytz-style ``.zone``) becomes local time with a TZID parameter; any
-    other aware datetime is converted to UTC and written with ``Z`` so the
-    instant is never silently changed.
+    Naive datetimes become floating local time; a tzinfo with a zone name
+    (zoneinfo ``.key`` or pytz-style ``.zone``) becomes local time with a
+    TZID parameter — even when its current offset happens to be zero, so
+    e.g. a winter Europe/London time keeps its zone identity — except that
+    a zone named ``UTC`` uses the conventional ``Z`` form; a zero UTC
+    offset without a zone name becomes the ``Z`` form; any other aware
+    datetime is converted to UTC and written with ``Z`` so the instant is
+    never silently changed.
     """
     if isinstance(value, _dt.datetime):
         if value.tzinfo is None:
             return value.strftime("%Y%m%dT%H%M%S"), []
-        if value.utcoffset() == _dt.timedelta(0):
-            return value.strftime("%Y%m%dT%H%M%S") + "Z", []
         key = getattr(value.tzinfo, "key", None) or getattr(
             value.tzinfo, "zone", None
         )
-        if key:
+        if key and key != "UTC":
             return value.strftime("%Y%m%dT%H%M%S"), [Param("TZID", [key])]
+        if value.utcoffset() == _dt.timedelta(0):
+            return value.strftime("%Y%m%dT%H%M%S") + "Z", []
         utc = value.astimezone(_dt.timezone.utc)
         return utc.strftime("%Y%m%dT%H%M%S") + "Z", []
     return value.strftime("%Y%m%d"), [Param("VALUE", ["DATE"])]
