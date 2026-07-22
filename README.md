@@ -59,7 +59,6 @@ let out = write_document(&parsed.components, &Default::default());
 | `python/calcard` | The Python package |
 | `tests/` | Python test suite (pytest + Hypothesis) |
 | `conformance/` | Vendored reference test data and tooling |
-| `DESIGN.md` | Architecture and roadmap |
 | `PORTING.md` | Porting notes for py-vobject and icalendar users |
 
 ## Development
@@ -87,6 +86,24 @@ against libical's icalrecur expectations, including RSCALE (RFC 7529)
 non-Gregorian rules via ICU4X and RFC 5545 DST semantics for zone-aware
 starts.
 
+## Timezones
+
+The Rust core deliberately bundles no timezone database: recurrence
+expansion in the core is timezone-naive ("floating"), which sidesteps
+bundled-tzdata staleness and the hazard of two timezone databases (a
+bundled one and the host's) disagreeing inside one process. Timezone
+*policy* belongs to the embedding layer: the Python API resolves `TZID`
+parameters through the host's `zoneinfo` and implements RFC 5545
+local-time DST semantics for zone-aware recurrence expansion.
+
+Current limitation: a `TZID` that `zoneinfo` cannot resolve currently
+yields a naive datetime, even when the document carries its own
+`VTIMEZONE` definition for it. Planned: fall back to interpreting the
+in-document `VTIMEZONE` (the RFC-conformant, database-free path — the
+core's RRULE engine can already expand STANDARD/DAYLIGHT rules), keeping
+`zoneinfo` preferred for names it knows, since real-world `VTIMEZONE`
+copies are often stale.
+
 ## Porting from py-vobject or icalendar
 
 See `PORTING.md` for a mapping of the common py-vobject and icalendar
@@ -99,5 +116,4 @@ regression documents kept under `conformance/fixtures/pyvobject/`.
 Feature-complete: lossless strict/lenient syntax layer, typed values,
 jCal/jCard and xCal/xCard, RRULE expansion (including RSCALE and DST-aware
 zone expansion), and a clean typed Python API, all backed by the
-cross-implementation conformance corpus. `DESIGN.md` tracks the roadmap
-and remaining ideas.
+cross-implementation conformance corpus.
