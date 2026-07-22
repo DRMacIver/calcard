@@ -224,19 +224,49 @@ def parse_one(
     return doc.components[0]
 
 
+def _rewrite_until_to_local(rule: str, tz) -> str:
+    """Rewrite a UTC UNTIL into the local wall clock of ``tz``, so that the
+    timezone-naive core engine compares in a single frame of reference."""
+    import datetime as _dt
+    import re
+
+    def repl(match):
+        until = _dt.datetime.strptime(match.group(1), "%Y%m%dT%H%M%S").replace(
+            tzinfo=_dt.timezone.utc
+        )
+        return "UNTIL=" + until.astimezone(tz).strftime("%Y%m%dT%H%M%S")
+
+    return re.sub(r"UNTIL=(\d{8}T\d{6})Z", repl, rule, flags=re.IGNORECASE)
+
+
 def expand_rrule(rule: str, dtstart, *, limit: int = 1000) -> list:
     """Expand a recurrence rule from a start date or datetime.
 
-    ``dtstart`` may be a :class:`datetime.date`, :class:`datetime.datetime`
-    (naive or UTC), or a wire-format string (``20260722T160000``). Returns
-    dates or naive/UTC datetimes matching the start's form, up to ``limit``
-    instances.
+    ``dtstart`` may be a :class:`datetime.date`, a
+    :class:`datetime.datetime` (naive, UTC, or zone-aware), or a
+    wire-format string (``20260722T160000``). Returns values matching the
+    start's form, up to ``limit`` instances.
+
+    For a zone-aware start, expansion follows RFC 5545 §3.3.5 local-time
+    semantics: the recurrence is generated on the local wall clock, then
+    each instance is resolved through the timezone — a wall time that
+    falls in a spring-forward gap takes the pre-gap offset (so it lands
+    after the gap), and an ambiguous fall-back time takes its first
+    occurrence. A UTC ``UNTIL`` is compared as an instant.
     """
     import datetime as _dt
 
+    tz = None
     if isinstance(dtstart, _dt.datetime):
-        z = "Z" if dtstart.tzinfo is not None else ""
-        start = dtstart.strftime("%Y%m%dT%H%M%S") + z
+        if dtstart.tzinfo is None:
+            start = dtstart.strftime("%Y%m%dT%H%M%S")
+        elif dtstart.tzinfo is _dt.timezone.utc:
+            start = dtstart.strftime("%Y%m%dT%H%M%S") + "Z"
+        else:
+            # Expand on the local wall clock; localize afterwards.
+            tz = dtstart.tzinfo
+            start = dtstart.replace(tzinfo=None).strftime("%Y%m%dT%H%M%S")
+            rule = _rewrite_until_to_local(rule, tz)
     elif isinstance(dtstart, _dt.date):
         start = dtstart.strftime("%Y%m%d")
     else:
@@ -246,14 +276,23 @@ def expand_rrule(rule: str, dtstart, *, limit: int = 1000) -> list:
     for t in _expand_rrule(rule, start, limit=limit):
         if len(t) == 3:
             out.append(_dt.date(*t))
-        else:
-            y, mo, d, h, mi, s, utc = t
-            out.append(
-                _dt.datetime(
-                    y, mo, d, h, mi, min(s, 59),
-                    tzinfo=_dt.timezone.utc if utc else None,
-                )
+            continue
+        y, mo, d, h, mi, s, utc = t
+        value = _dt.datetime(
+            y, mo, d, h, mi, min(s, 59),
+            tzinfo=_dt.timezone.utc if utc else None,
+        )
+        if tz is not None:
+            # fold=0 gives the RFC's resolution for gap and ambiguous
+            # times; the round-trip through UTC normalizes gap times onto
+            # the real clock (astimezone directly to the same tz is a
+            # no-op fast path in CPython).
+            value = (
+                value.replace(tzinfo=tz)
+                .astimezone(_dt.timezone.utc)
+                .astimezone(tz)
             )
+        out.append(value)
     return out
 
 

@@ -162,7 +162,8 @@ class _StartEndMixin(TypedComponent):
 
     def occurrences(self, *, limit: int = 1000) -> list:
         """Expand this component's RRULE from its start (start alone if
-        there is no rule). EXDATE/RDATE handling is the caller's concern."""
+        there is no rule), with RFC 5545 local-time DST semantics for
+        zone-aware starts. EXDATE/RDATE handling is the caller's concern."""
         from vobject import expand_rrule
 
         start = self.start
@@ -171,11 +172,7 @@ class _StartEndMixin(TypedComponent):
         rule = self.rrule
         if rule is None:
             return [start]
-        occurrences = expand_rrule(rule, _wire_datetime(start)[0], limit=limit)
-        tzinfo = getattr(start, "tzinfo", None)
-        if tzinfo is not None and tzinfo != _dt.timezone.utc:
-            occurrences = [o.replace(tzinfo=tzinfo) for o in occurrences]
-        return occurrences
+        return expand_rrule(rule, start, limit=limit)
 
 
 class Event(_StartEndMixin):
