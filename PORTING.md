@@ -18,7 +18,7 @@ Throughout: `import calcard`.
 | `cal.vevent_list` | `cal.comps("VEVENT")` |
 | `event.summary.value` | `event.prop("SUMMARY").value` (raw) or typed `Event(...).summary` |
 | `event.dtstart.value` (native datetime) | typed `event.start`, or `calcard.native_value(prop)` |
-| `component.add("summary").value = s` | typed setter `event.summary = s`, or `component.children = [*component.children, Property(...)]` (the `children` list is materialized per read, so `.append` on it is lost) |
+| `component.add("summary").value = s` | typed setter `event.summary = s`, or `component.children.append(Property(...))` |
 | `prop.params["CN"]` | `{p.name: p.values for p in prop.params}` |
 | `prop.group` | `prop.group` (same idea) |
 | `cal.vevent.getrruleset()` | `event.occurrences(limit=...)` or `calcard.expand_rrule(rule, dtstart)` |
@@ -49,8 +49,8 @@ Notes:
 | --- | --- |
 | `Calendar.from_ical(text)` | `calcard.parse_one(text)` (or `.parse` for streams of components) |
 | `cal.to_ical()` | `doc.serialize().encode()` |
-| `Event()` / `cal.add_component(...)` | `Component("VEVENT", children)`; `parent.children = [*parent.children, event]` |
-| `cal["prodid"]` / `cal.add("prodid", ...)` | `cal.prop("PRODID").value` / assign `children` with a new `Property` |
+| `Event()` / `cal.add_component(...)` | `Component("VEVENT", children)`; `parent.children.append(event)` |
+| `cal["prodid"]` / `cal.add("prodid", ...)` | `cal.prop("PRODID").value` / `cal.children.append(Property(...))` |
 | `event.decoded("dtstart")` | typed `event.start`, or `calcard.native_value(prop)` |
 | `vDatetime`, `vDate`, `vDuration`, ... | plain Python types out of `native_value` (datetime/date/timedelta/...); wire text via `Property.value` |
 | `event["rrule"]` (`vRecur` dict) | `event.rrule` (rule text) and `event.occurrences()` |

@@ -4,17 +4,18 @@
 //! strict/lenient parser and serializer. The user-facing Python API lives in
 //! the pure-Python `calcard` package on top of these primitives.
 //!
-//! The model classes hold shared references (`Py<T>`) to their children, so
-//! a child object obtained from the tree is the tree's child, not a copy,
-//! and mutating its attributes is visible through the tree. Note that the
-//! list-valued attributes (`children`, `params`, `values`) are materialized
-//! afresh on every read: `comp.children.append(x)` mutates a temporary and
-//! is silently lost. Mutate by assignment instead:
-//! `comp.children = [*comp.children, x]`.
+//! The model is mutable in place: a child object obtained from the tree is
+//! the tree's child, not a copy, and the list-valued attributes
+//! (`children`, `params`, `values`) are live Python lists — the getter
+//! returns the list itself, so `comp.children.append(x)` is respected.
+//! Assigning to such an attribute copies the assigned sequence into a
+//! fresh list owned by the object (so later mutation of the source
+//! sequence does not leak in).
 
 use pyo3::create_exception;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::types::{PyList, PyString};
 use vobject_core as core;
 
 /// What `parse`/`parse_bytes` hand back to Python: (components, repairs).
@@ -27,29 +28,97 @@ create_exception!(
     "The input could not be parsed as a vobject document."
 );
 
+/// Copy a sequence of strings into a fresh Python list, type-checking
+/// each element.
+fn str_list(py: Python<'_>, values: Option<Bound<'_, PyAny>>) -> PyResult<Py<PyList>> {
+    let list = PyList::empty(py);
+    if let Some(values) = values {
+        for item in values.try_iter()? {
+            let item = item?;
+            if !item.is_instance_of::<PyString>() {
+                return Err(PyTypeError::new_err(format!(
+                    "parameter values must be str, not {}",
+                    item.get_type().name()?
+                )));
+            }
+            list.append(item)?;
+        }
+    }
+    Ok(list.unbind())
+}
+
+/// Copy a sequence of Params into a fresh Python list, type-checking
+/// each element.
+fn param_list(py: Python<'_>, params: Option<Bound<'_, PyAny>>) -> PyResult<Py<PyList>> {
+    let list = PyList::empty(py);
+    if let Some(params) = params {
+        for item in params.try_iter()? {
+            let item = item?;
+            if !item.is_instance_of::<Param>() {
+                return Err(PyTypeError::new_err(format!(
+                    "property params must be Param, not {}",
+                    item.get_type().name()?
+                )));
+            }
+            list.append(item)?;
+        }
+    }
+    Ok(list.unbind())
+}
+
+/// Copy an arbitrary sequence into a fresh Python list. Child types are
+/// checked at use (serialization/conversion), not on insertion.
+fn any_list(py: Python<'_>, items: Option<Bound<'_, PyAny>>) -> PyResult<Py<PyList>> {
+    let list = PyList::empty(py);
+    if let Some(items) = items {
+        for item in items.try_iter()? {
+            list.append(item?)?;
+        }
+    }
+    Ok(list.unbind())
+}
+
 /// A property parameter: a name and zero or more decoded values.
 #[pyclass(module = "calcard._core")]
 struct Param {
     #[pyo3(get, set)]
     name: String,
-    #[pyo3(get, set)]
-    values: Vec<String>,
+    values: Py<PyList>,
 }
 
 #[pymethods]
 impl Param {
     #[new]
-    #[pyo3(signature = (name, values = Vec::new()))]
-    fn new(name: String, values: Vec<String>) -> Param {
-        Param { name, values }
+    #[pyo3(signature = (name, values = None))]
+    fn new(py: Python<'_>, name: String, values: Option<Bound<'_, PyAny>>) -> PyResult<Param> {
+        Ok(Param {
+            name,
+            values: str_list(py, values)?,
+        })
     }
 
-    fn __repr__(&self) -> String {
-        format!("Param(name={:?}, values={:?})", self.name, self.values)
+    /// The live list of decoded values: mutating it mutates the parameter.
+    #[getter]
+    fn values(&self, py: Python<'_>) -> Py<PyList> {
+        self.values.clone_ref(py)
     }
 
-    fn __eq__(&self, other: &Param) -> bool {
-        self.name == other.name && self.values == other.values
+    #[setter]
+    fn set_values(&mut self, py: Python<'_>, values: Bound<'_, PyAny>) -> PyResult<()> {
+        self.values = str_list(py, Some(values))?;
+        Ok(())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "Param(name={:?}, values={})",
+            self.name,
+            self.values.bind(py).repr()?
+        ))
+    }
+
+    fn __eq__(&self, other: &Param, py: Python<'_>) -> PyResult<bool> {
+        Ok(self.name == other.name && self.values.bind(py).eq(other.values.bind(py))?)
     }
 }
 
@@ -60,8 +129,7 @@ struct Property {
     group: Option<String>,
     #[pyo3(get, set)]
     name: String,
-    #[pyo3(get, set)]
-    params: Vec<Py<Param>>,
+    params: Py<PyList>,
     /// The raw (escaped, unfolded) value text.
     #[pyo3(get, set)]
     value: String,
@@ -70,41 +138,49 @@ struct Property {
 #[pymethods]
 impl Property {
     #[new]
-    #[pyo3(signature = (name, value, params = Vec::new(), group = None))]
-    fn new(name: String, value: String, params: Vec<Py<Param>>, group: Option<String>) -> Property {
-        Property {
+    #[pyo3(signature = (name, value, params = None, group = None))]
+    fn new(
+        py: Python<'_>,
+        name: String,
+        value: String,
+        params: Option<Bound<'_, PyAny>>,
+        group: Option<String>,
+    ) -> PyResult<Property> {
+        Ok(Property {
             group,
             name,
-            params,
+            params: param_list(py, params)?,
             value,
-        }
+        })
     }
 
-    fn __repr__(&self, py: Python<'_>) -> String {
-        let params: Vec<String> = self
-            .params
-            .iter()
-            .map(|p| p.borrow(py).__repr__())
-            .collect();
-        format!(
-            "Property(name={:?}, value={:?}, params=[{}], group={:?})",
+    /// The live parameter list: mutating it mutates the property.
+    #[getter]
+    fn params(&self, py: Python<'_>) -> Py<PyList> {
+        self.params.clone_ref(py)
+    }
+
+    #[setter]
+    fn set_params(&mut self, py: Python<'_>, params: Bound<'_, PyAny>) -> PyResult<()> {
+        self.params = param_list(py, Some(params))?;
+        Ok(())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "Property(name={:?}, value={:?}, params={}, group={:?})",
             self.name,
             self.value,
-            params.join(", "),
+            self.params.bind(py).repr()?,
             self.group
-        )
+        ))
     }
 
-    fn __eq__(&self, other: &Property, py: Python<'_>) -> bool {
-        self.group == other.group
+    fn __eq__(&self, other: &Property, py: Python<'_>) -> PyResult<bool> {
+        Ok(self.group == other.group
             && self.name == other.name
             && self.value == other.value
-            && self.params.len() == other.params.len()
-            && self
-                .params
-                .iter()
-                .zip(&other.params)
-                .all(|(a, b)| a.borrow(py).__eq__(&b.borrow(py)))
+            && self.params.bind(py).eq(other.params.bind(py))?)
     }
 }
 
@@ -114,37 +190,51 @@ impl Property {
 struct Component {
     #[pyo3(get, set)]
     name: String,
-    #[pyo3(get, set)]
-    children: Vec<Py<PyAny>>,
+    children: Py<PyList>,
 }
 
 impl Drop for Component {
     /// Deallocating a deeply nested tree through the default recursive
     /// reference-count cascade overflows the C stack (a segfault, not an
-    /// exception). Flatten it: before releasing a child component this
-    /// object holds the only reference to, steal its children so its own
-    /// dealloc cannot recurse. Shared children (refcount > 1) are left
-    /// untouched — someone else still observes them.
+    /// exception): CPython's trashcan bounds chains of *list* deallocs,
+    /// but the interleaved pyo3 Component deallocs are not trashcan-aware.
+    /// Flatten it: while this component holds the only reference to its
+    /// child list, drain the list, and steal the child list of any
+    /// component the drained list held the only reference to. Shared
+    /// lists/children (refcount > 1) are left untouched — someone else
+    /// still observes them.
     fn drop(&mut self) {
-        if self.children.is_empty() {
-            return;
-        }
-        let mut stack = std::mem::take(&mut self.children);
         Python::attach(|py| {
+            // Deallocation can run while an exception is being propagated
+            // (temporaries dropped during unwinding); the Python calls
+            // below must not observe or clobber it.
+            let pending = PyErr::take(py);
+            // SAFETY (both Py_REFCNT calls): the pointers are valid, owned
+            // object pointers for the duration of the call (Py_REFCNT only
+            // reads the refcount field). This is the replacement pyo3
+            // recommends for its deprecated safe get_refcnt wrappers.
+            let mut stack: Vec<Py<PyAny>> = Vec::new();
+            fn steal(list: &Bound<'_, PyList>, stack: &mut Vec<Py<PyAny>>) {
+                if unsafe { pyo3::ffi::Py_REFCNT(list.as_ptr()) } == 1 {
+                    for child in list.iter() {
+                        stack.push(child.unbind());
+                    }
+                    let _ = list.call_method0("clear");
+                }
+            }
+            steal(self.children.bind(py), &mut stack);
             while let Some(obj) = stack.pop() {
-                // SAFETY: `obj.as_ptr()` is a valid, owned object pointer
-                // for the duration of the call (Py_REFCNT only reads the
-                // refcount field). This is the replacement pyo3 recommends
-                // for its deprecated safe get_refcnt wrappers.
-                let refcnt = unsafe { pyo3::ffi::Py_REFCNT(obj.as_ptr()) };
-                if refcnt == 1 {
+                if unsafe { pyo3::ffi::Py_REFCNT(obj.as_ptr()) } == 1 {
                     if let Ok(comp) = obj.cast_bound::<Component>(py) {
-                        if let Ok(mut inner) = comp.try_borrow_mut() {
-                            stack.append(&mut inner.children);
+                        if let Ok(inner) = comp.try_borrow_mut() {
+                            steal(inner.children.bind(py), &mut stack);
                         }
                     }
                 }
                 drop(obj);
+            }
+            if let Some(err) = pending {
+                err.restore(py);
             }
         });
     }
@@ -153,34 +243,55 @@ impl Drop for Component {
 #[pymethods]
 impl Component {
     #[new]
-    #[pyo3(signature = (name, children = Vec::new()))]
-    fn new(name: String, children: Vec<Py<PyAny>>) -> Component {
-        Component { name, children }
+    #[pyo3(signature = (name, children = None))]
+    fn new(
+        py: Python<'_>,
+        name: String,
+        children: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<Component> {
+        Ok(Component {
+            name,
+            children: any_list(py, children)?,
+        })
     }
 
-    fn __repr__(&self) -> String {
+    /// The live child list: mutating it mutates the component.
+    #[getter]
+    fn children(&self, py: Python<'_>) -> Py<PyList> {
+        self.children.clone_ref(py)
+    }
+
+    #[setter]
+    fn set_children(&mut self, py: Python<'_>, children: Bound<'_, PyAny>) -> PyResult<()> {
+        self.children = any_list(py, Some(children))?;
+        Ok(())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> String {
         format!(
             "Component(name={:?}, <{} children>)",
             self.name,
-            self.children.len()
+            self.children.bind(py).len()
         )
     }
 
     /// All direct child properties, in order.
     fn properties(&self, py: Python<'_>) -> Vec<Py<Property>> {
         self.children
+            .bind(py)
             .iter()
-            .filter_map(|c| c.cast_bound::<Property>(py).ok())
-            .map(|p| p.clone().unbind())
+            .filter_map(|c| c.cast_into::<Property>().ok())
+            .map(|p| p.unbind())
             .collect()
     }
 
     /// All direct child components, in order.
     fn components(&self, py: Python<'_>) -> Vec<Py<Component>> {
         self.children
+            .bind(py)
             .iter()
-            .filter_map(|c| c.cast_bound::<Component>(py).ok())
-            .map(|c| c.clone().unbind())
+            .filter_map(|c| c.cast_into::<Component>().ok())
+            .map(|c| c.unbind())
             .collect()
     }
 
@@ -225,17 +336,17 @@ impl Component {
                 "component nesting exceeds the supported depth limit (is the tree cyclic?)",
             ));
         }
-        if self.name != other.name || self.children.len() != other.children.len() {
+        let ours = self.children.bind(py);
+        let theirs = other.children.bind(py);
+        if self.name != other.name || ours.len() != theirs.len() {
             return Ok(false);
         }
-        for (a, b) in self.children.iter().zip(&other.children) {
-            if let (Ok(pa), Ok(pb)) = (a.cast_bound::<Property>(py), b.cast_bound::<Property>(py)) {
-                if !pa.borrow().__eq__(&pb.borrow(), py) {
+        for (a, b) in ours.iter().zip(theirs.iter()) {
+            if let (Ok(pa), Ok(pb)) = (a.cast::<Property>(), b.cast::<Property>()) {
+                if !pa.borrow().__eq__(&pb.borrow(), py)? {
                     return Ok(false);
                 }
-            } else if let (Ok(ca), Ok(cb)) =
-                (a.cast_bound::<Component>(py), b.cast_bound::<Component>(py))
-            {
+            } else if let (Ok(ca), Ok(cb)) = (a.cast::<Component>(), b.cast::<Component>()) {
                 if !ca.borrow().eq_at(&cb.borrow(), py, depth + 1)? {
                     return Ok(false);
                 }
@@ -271,61 +382,80 @@ fn param_to_py(py: Python<'_>, p: &core::Param) -> PyResult<Py<Param>> {
         py,
         Param {
             name: p.name.clone(),
-            values: p.values.clone(),
+            values: PyList::new(py, &p.values)?.unbind(),
         },
     )
 }
 
 fn property_to_py(py: Python<'_>, p: &core::Property) -> PyResult<Py<Property>> {
+    let params = PyList::empty(py);
+    for param in &p.params {
+        params.append(param_to_py(py, param)?)?;
+    }
     Py::new(
         py,
         Property {
             group: p.group.clone(),
             name: p.name.clone(),
-            params: p
-                .params
-                .iter()
-                .map(|param| param_to_py(py, param))
-                .collect::<PyResult<Vec<_>>>()?,
+            params: params.unbind(),
             value: p.value.clone(),
         },
     )
 }
 
 fn component_to_py(py: Python<'_>, c: &core::Component) -> PyResult<Py<Component>> {
-    let mut children: Vec<Py<PyAny>> = Vec::with_capacity(c.children.len());
+    let children = PyList::empty(py);
     for child in &c.children {
         match child {
-            core::Child::Property(p) => children.push(property_to_py(py, p)?.into_any()),
-            core::Child::Component(k) => children.push(component_to_py(py, k)?.into_any()),
+            core::Child::Property(p) => children.append(property_to_py(py, p)?)?,
+            core::Child::Component(k) => children.append(component_to_py(py, k)?)?,
         }
     }
     Py::new(
         py,
         Component {
             name: c.name.clone(),
-            children,
+            children: children.unbind(),
         },
     )
 }
 
-fn py_to_property(py: Python<'_>, p: &Property) -> core::Property {
-    core::Property {
+fn py_to_property(py: Python<'_>, p: &Property) -> PyResult<core::Property> {
+    let mut params = Vec::new();
+    for item in p.params.bind(py).iter() {
+        let param = item.cast::<Param>().map_err(|_| {
+            PyTypeError::new_err(format!(
+                "property params must be Param, not {}",
+                item.get_type()
+                    .name()
+                    .map(|n| n.to_string())
+                    .unwrap_or_default()
+            ))
+        })?;
+        let param = param.borrow();
+        let mut values = Vec::new();
+        for v in param.values.bind(py).iter() {
+            values.push(v.extract::<String>().map_err(|_| {
+                PyTypeError::new_err(format!(
+                    "parameter values must be str, not {}",
+                    v.get_type()
+                        .name()
+                        .map(|n| n.to_string())
+                        .unwrap_or_default()
+                ))
+            })?);
+        }
+        params.push(core::Param {
+            name: param.name.clone(),
+            values,
+        });
+    }
+    Ok(core::Property {
         group: p.group.clone(),
         name: p.name.clone(),
-        params: p
-            .params
-            .iter()
-            .map(|param| {
-                let param = param.borrow(py);
-                core::Param {
-                    name: param.name.clone(),
-                    values: param.values.clone(),
-                }
-            })
-            .collect(),
+        params,
         value: p.value.clone(),
-    }
+    })
 }
 
 /// Depth cap matching the parser's default `max_depth`. Python code can
@@ -345,15 +475,15 @@ fn py_to_component_at(py: Python<'_>, c: &Component, depth: usize) -> PyResult<c
         ));
     }
     let mut out = core::Component::new(c.name.clone());
-    for child in &c.children {
-        if let Ok(p) = child.cast_bound::<Property>(py) {
-            out.push_property(py_to_property(py, &p.borrow()));
-        } else if let Ok(k) = child.cast_bound::<Component>(py) {
+    for child in c.children.bind(py).iter() {
+        if let Ok(p) = child.cast::<Property>() {
+            out.push_property(py_to_property(py, &p.borrow())?);
+        } else if let Ok(k) = child.cast::<Component>() {
             out.push_component(py_to_component_at(py, &k.borrow(), depth + 1)?);
         } else {
             return Err(PyValueError::new_err(format!(
                 "component children must be Property or Component, not {}",
-                child.bind(py).get_type().name()?
+                child.get_type().name()?
             )));
         }
     }
@@ -530,7 +660,7 @@ fn typed_value(py: Python<'_>, prop: &Property, dialect: &str) -> PyResult<(Stri
     use vobject_core::value as v;
 
     let dialect = parse_dialect(dialect)?;
-    let core_prop = py_to_property(py, prop);
+    let core_prop = py_to_property(py, prop)?;
     let value = core_prop
         .typed_value(dialect)
         .map_err(|e| ParseError::new_err(e.to_string()))?;

@@ -30,6 +30,59 @@ def test_serialize_round_trip():
     assert doc.serialize() == SIMPLE
 
 
+# ---------------------------------------------------------------------------
+# children/params/values are live lists: in-place mutation is respected.
+
+
+def test_children_append_is_respected():
+    comp = calcard.Component("VCARD")
+    comp.children.append(calcard.Property("FN", "Bob"))
+    assert [p.name for p in comp.properties()] == ["FN"]
+    assert "FN:Bob" in calcard.serialize([comp])
+
+
+def test_params_and_values_append_are_respected():
+    prop = calcard.Property("TEL", "+441234")
+    prop.params.append(calcard.Param("TYPE", ["work"]))
+    prop.params[0].values.append("pref")
+    comp = calcard.Component("VCARD")
+    comp.children.append(prop)
+    assert "TEL;TYPE=work,pref:+441234" in calcard.serialize([comp])
+
+
+def test_children_is_the_same_live_list():
+    comp = calcard.parse_one("BEGIN:VCARD\r\nFN:a\r\nNOTE:b\r\nEND:VCARD\r\n")
+    kids = comp.children
+    assert kids is comp.children
+    del kids[0]
+    assert [p.name for p in comp.properties()] == ["NOTE"]
+    # Children are shared references, not copies.
+    comp.children[0].value = "c"
+    assert comp.prop("NOTE").value == "c"
+
+
+def test_children_assignment_copies_the_sequence():
+    comp = calcard.Component("VCARD")
+    external = [calcard.Property("FN", "Bob")]
+    comp.children = external
+    external.append(calcard.Property("NOTE", "x"))
+    assert [p.name for p in comp.properties()] == ["FN"]
+
+
+def test_non_model_children_error_at_use():
+    comp = calcard.Component("VCARD")
+    comp.children.append(42)
+    with pytest.raises(ValueError, match="Property or Component"):
+        calcard.serialize([comp])
+
+
+def test_param_values_must_be_strings():
+    with pytest.raises(TypeError):
+        calcard.Param("TYPE", [1])
+    with pytest.raises(TypeError):
+        calcard.Property("X", "v", params=["not a param"])
+
+
 def test_serialize_accepts_document_component_and_list():
     doc = calcard.parse(SIMPLE)
     comp = doc.components[0]
