@@ -254,13 +254,10 @@ fn delimiter_name(
         return None;
     }
     if prop.group.is_some() || name != prop.value {
-        match repairs.as_deref_mut() {
-            Some(repairs) => repairs.push(Repair {
-                location: loc,
-                kind: RepairKind::NormalizedDelimiter(name.to_string()),
-            }),
-            None => return None,
-        }
+        repairs.as_deref_mut()?.push(Repair {
+            location: loc,
+            kind: RepairKind::NormalizedDelimiter(name.to_string()),
+        });
     }
     if !contentline::is_strict_name(name) {
         match repairs {

@@ -141,10 +141,8 @@ impl Config {
                     by_month_day = vec![dtstart.date.day as i8];
                 }
             }
-            Frequency::Weekly => {
-                if by_day.is_empty() {
-                    by_day = vec![(None, dtstart.date.weekday())];
-                }
+            Frequency::Weekly if by_day.is_empty() => {
+                by_day = vec![(None, dtstart.date.weekday())];
             }
             _ => {}
         }
