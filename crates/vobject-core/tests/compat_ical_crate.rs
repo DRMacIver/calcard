@@ -49,12 +49,11 @@
 //!    legitimate empty value; the generator only keeps empty values in
 //!    first or last position, where a single separator survives their
 //!    parser.
-//! 6. No property value beginning with ':': after splitting off the name
-//!    and parameters, the `ical` crate's parser advances with
-//!    `trim_start_matches(':')`, which eats every leading colon of the
-//!    value (`A::` parses as an empty value instead of ":"). A leading
-//!    colon is a perfectly legal value octet, so values are generated
-//!    without one.
+//! 6. No value starting with ':': the `ical` crate splits off the value
+//!    with `trim_start_matches(':')`, which eats the whole leading colon
+//!    run, so `A:::x` (value "::x") parses as "x" and `A::` (value ":")
+//!    as `None`. A leading ':' in a TEXT value is legal RFC 5545/6350
+//!    wire, so the generator simply never produces one.
 
 use hegel::generators;
 use vobject_core::escape::{caret_encode, escape_text};
@@ -97,7 +96,7 @@ fn draw_text(tc: &hegel::TestCase) -> String {
 /// A raw property value: either escaped TEXT (exercising `\,` `\;` `\n`
 /// `\\` and Unicode) or a simple token like a date-time or version number.
 fn draw_value(tc: &hegel::TestCase) -> String {
-    if tc.draw(generators::booleans()) {
+    let value = if tc.draw(generators::booleans()) {
         escape_text(&draw_text(tc))
     } else {
         tc.draw(generators::sampled_from(vec![
@@ -110,7 +109,9 @@ fn draw_value(tc: &hegel::TestCase) -> String {
             "",
         ]))
         .to_string()
-    }
+    };
+    // No leading ':' (deviation 6).
+    value.trim_start_matches(':').to_string()
 }
 
 /// A decoded parameter value: no CR (unrepresentable through RFC 6868),

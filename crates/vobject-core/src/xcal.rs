@@ -19,7 +19,7 @@ use serde_json::Value as Json;
 use crate::escape::escape_text;
 use crate::jcal;
 use crate::model::{Component, Param, Property};
-use crate::value::{default_type_info, Dialect, ValueType};
+use crate::value::{default_type_info, Dialect, Multiplicity, ValueType};
 
 pub const XCAL_NS: &str = "urn:ietf:params:xml:ns:icalendar-2.0";
 pub const XCARD_NS: &str = "urn:ietf:params:xml:ns:vcard-4.0";
@@ -159,7 +159,17 @@ fn write_property(w: &mut W, prop_json: &Json, dialect: Dialect) -> Result<(), X
         }
     }
 
-    let field_names = structured_field_names(name, dialect);
+    // The structured branch applies only when the value actually took the
+    // structured path in jCal: a float-structured property (GEO) emits an
+    // array slot there (an explicit VALUE=FLOAT collapses to a plain
+    // number), and a text-structured property keeps type "text" (any other
+    // VALUE override reads as that plain type instead).
+    let field_names = structured_field_names(name, dialect).filter(|_| {
+        match default_type_info(name, dialect).vtype {
+            ValueType::Float => matches!(values.first(), Some(Json::Array(_))),
+            _ => type_name == "text",
+        }
+    });
     match (type_name, field_names) {
         ("recur", _) => {
             // One <recur> element with one child per part; list parts
@@ -257,6 +267,13 @@ fn write_component(
     w.write_event(Event::Start(BytesStart::new(name)))
         .map_err(|e| XmlError::new(e.to_string()))?;
     if vcard {
+        // RFC 6351 has no representation for components nested inside a
+        // vCard; erroring beats silently dropping them.
+        if !comps.is_empty() {
+            return Err(XmlError::new(format!(
+                "components nested inside {name:?} cannot be represented in xCard"
+            )));
+        }
         // xCard has no <properties> wrapper.
         for p in &props {
             write_property(w, p, dialect)?;
@@ -421,56 +438,23 @@ fn parse_tree(xml: &str) -> Result<XNode, XmlError> {
     Ok(root.children.remove(0))
 }
 
-/// Compact a dashed date, respecting vCard truncation forms: leading
-/// dashes are markers (`--02-03` → `--0203`), and `1985-04` keeps its
-/// dash per RFC 6350. Unrecognized shapes pass through.
-fn compact_date(d: &str) -> String {
-    let b = d.as_bytes();
-    if d.len() == 10 && b[4] == b'-' && b[7] == b'-' {
-        format!("{}{}{}", &d[0..4], &d[5..7], &d[8..10])
-    } else if d.len() == 7 && d.starts_with("--") && b[4] == b'-' {
-        format!("--{}{}", &d[2..4], &d[5..7])
-    } else {
-        d.to_string()
-    }
-}
-
-/// Convert a value element's dashed/coloned text back to wire form.
+/// Convert a value element's dashed/coloned text back to wire form. The
+/// date family and UTC offsets share jCal's helpers (an xCal value element
+/// carries exactly the jCal slot text), including the verify-before-
+/// accepting-compaction guard: unparseable raw-fallback values must return
+/// verbatim rather than mangled.
 fn value_text_to_wire(type_name: &str, text: &str, dialect: Dialect) -> String {
     match type_name {
-        // vCard 3.0's own wire format is the extended (dashed) ISO form,
-        // so its date family passes through verbatim.
-        "date" | "date-time" | "time" | "timestamp" | "date-and-or-time"
-            if dialect == Dialect::VCard3 =>
-        {
-            text.to_string()
-        }
         "date" | "date-time" | "time" | "timestamp" | "date-and-or-time" => {
-            // Unparseable wire values travel through jCal/xCal as raw
-            // strings; only transform text that is shaped like a jCal
-            // date/time (digits and date-time punctuation alone).
-            let looks_like_datetime = !text.is_empty()
-                && text.chars().all(|c| {
-                    c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-')
-                });
-            if !looks_like_datetime {
-                return text.to_string();
-            }
-            match text.split_once(['T', 't']) {
-                // Colons in a time part are only separators; dashes there
-                // are zone signs or truncation markers and must survive.
-                Some((d, t)) => format!("{}T{}", compact_date(d), t.replace(':', "")),
-                None => {
-                    if text.contains(':') {
-                        // A bare time value.
-                        text.replace(':', "")
-                    } else {
-                        compact_date(text)
-                    }
-                }
-            }
+            let vtype = ValueType::from_name(type_name).expect("date-family type name");
+            jcal::date_slot_to_wire(text, vtype, dialect)
         }
-        "utc-offset" => text.replace(':', ""),
+        "utc-offset" => {
+            jcal::verified_wire(text, text.replace(':', ""), ValueType::UtcOffset, dialect)
+        }
+        // iCalendar URIs (RFC 5545 §3.3.13) have no backslash escaping;
+        // vCard values, URIs included, escape commas (RFC 6350 §3.4).
+        "uri" | "cal-address" if dialect == Dialect::ICalendar => text.to_string(),
         "text" | "cal-address" | "uri" | "phone-number" | "vcard" => escape_text(text),
         // Unknown values are raw wire text in both directions (RFC 7265
         // §5); escaping them would double-escape.
@@ -494,13 +478,14 @@ fn recur_node_to_wire(node: &XNode) -> String {
             values.push(node.children[j].text.clone());
             j += 1;
         }
-        let wire_name = name.replace('-', "");
-        let value = if wire_name == "UNTIL" {
+        // Recur part names map to wire names verbatim (no RFC 6321 recur
+        // element contains a '-'; extension parts like X-FOO keep theirs).
+        let value = if name == "UNTIL" {
             values.join(",").replace(['-', ':'], "")
         } else {
             values.join(",")
         };
-        parts.push(format!("{wire_name}={value}"));
+        parts.push(format!("{name}={value}"));
         i = j;
     }
     let joined = parts.join(";");
@@ -528,11 +513,17 @@ fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlErr
         if child.name == "parameters" {
             for pnode in &child.children {
                 let pname = pnode.name.to_ascii_uppercase();
-                let values: Vec<String> = if pnode.children.is_empty() {
+                let mut values: Vec<String> = if pnode.children.is_empty() {
                     vec![pnode.text.clone()]
                 } else {
                     pnode.children.iter().map(|v| v.text.clone()).collect()
                 };
+                // A single empty value is how the writer spells a bare
+                // (valueless) param like TEL;HOME — mirror the jCal
+                // reader's choice and read it back as bare.
+                if values.len() == 1 && values[0].is_empty() {
+                    values.clear();
+                }
                 if pname == "GROUP" {
                     group = values.into_iter().next();
                 } else {
@@ -553,6 +544,12 @@ fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlErr
 
     let default = default_type_info(&name, dialect);
     let first_type = value_nodes[0].name.as_str();
+    // Structured values are recognized by their named field elements (the
+    // writer always names the first component after a registry field); a
+    // plain type-named element on a structured property (GEO;VALUE=FLOAT →
+    // <float>) reads through the generic path instead.
+    let structured_fields =
+        structured_field_names(&node.name, dialect).filter(|fields| fields.contains(&first_type));
 
     let raw = if first_type == "recur" {
         if value_nodes[0].children.is_empty() {
@@ -589,22 +586,30 @@ fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlErr
             periods.push(format!("{start}/{end}"));
         }
         periods.join(",")
-    } else if let Some(fields) = structured_field_names(&node.name, dialect) {
+    } else if let Some(fields) = structured_fields {
         // Structured: gather by field name, preserving field order. Only
         // fields up to the last one actually present in the XML become
         // components (absent trailing fields were never written; N/ADR
         // writers emit their empty components explicitly, so full width
-        // survives).
+        // survives). Components beyond the RFC field list travel as
+        // trailing <text> elements; each reads back as its own component.
+        // (A trailing comma list writes the same XML as several scalar
+        // overflow components, so the two are ambiguous; extra semicolon
+        // fields are the common lenient real-world shape, and both
+        // readings re-write to identical XML.)
         let mut by_field: Vec<Vec<String>> = vec![Vec::new(); fields.len()];
+        let mut overflow: Vec<String> = Vec::new();
         let mut last_present = 0;
         for vnode in &value_nodes {
             if let Some(idx) = fields.iter().position(|f| *f == vnode.name) {
                 by_field[idx].push(vnode.text.clone());
                 last_present = last_present.max(idx);
+            } else if vnode.name == "text" {
+                overflow.push(escape_text(&vnode.text));
             }
         }
         by_field.truncate(last_present + 1);
-        by_field
+        let mut components: Vec<String> = by_field
             .iter()
             .map(|values| {
                 values
@@ -613,8 +618,9 @@ fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlErr
                     .collect::<Vec<_>>()
                     .join(",")
             })
-            .collect::<Vec<_>>()
-            .join(";")
+            .collect();
+        components.extend(overflow);
+        components.join(";")
     } else {
         value_nodes
             .iter()
@@ -623,14 +629,37 @@ fn property_from_node(node: &XNode, dialect: Dialect) -> Result<Property, XmlErr
             .join(",")
     };
 
-    // Record the value type when it differs from the property's default
-    // (structured values infer their type from the named field elements
-    // instead of a type-named element).
+    // Record the value type when the writer would not reproduce it from
+    // the property alone, mirroring the jCal reader: it differs from the
+    // registry default, or writing without a VALUE parameter would
+    // shape-infer a different date type. (Structured values infer their
+    // type from the named field elements instead and record nothing.)
     let declared = ValueType::from_name(&first_type.to_ascii_uppercase().replace('_', "-"));
-    if let Some(declared) = declared {
-        if declared != default.vtype && structured_field_names(&node.name, dialect).is_none() {
+    if structured_fields.is_some() {
+        // Consumed into the named-field representation.
+    } else if let Some(declared) = declared {
+        let has_time = raw.contains(['T', 't']);
+        let inferred = match default.vtype {
+            ValueType::DateTime if !has_time => ValueType::Date,
+            ValueType::Date if has_time => ValueType::DateTime,
+            v => v,
+        };
+        // A parseable plain <float> on a float-structured property (GEO)
+        // was written under an explicit VALUE=FLOAT (single multiplicity);
+        // record it so re-writing takes the same path. Unparseable raw
+        // fallbacks stay param-free, matching jCal.
+        let force = declared == ValueType::Float
+            && default.vtype == ValueType::Float
+            && matches!(default.multiplicity, Multiplicity::Structured { .. })
+            && raw.trim().parse::<f64>().is_ok_and(f64::is_finite);
+        if declared != default.vtype || declared != inferred || force {
             params.push(Param::new("VALUE", first_type.to_ascii_uppercase()));
         }
+    } else if !first_type.is_empty() {
+        // An unrecognized type name is the writer's spelling of an
+        // unrecognized VALUE parameter; record it so re-writing reproduces
+        // the same element name.
+        params.push(Param::new("VALUE", first_type.to_ascii_uppercase()));
     }
 
     Ok(Property {
@@ -776,5 +805,125 @@ mod tests {
         assert!(from_xml("").is_err());
         assert!(from_xml("<unbalanced>").is_err());
         assert!(from_xml("<other/>").is_err());
+    }
+
+    #[test]
+    fn icalendar_uri_with_comma_round_trips_unescaped() {
+        // RFC 5545 §3.3.13: iCalendar URIs have no backslash escaping.
+        let comps = components(
+            "BEGIN:VCALENDAR\r\nURL:http://example.com/a,b\r\nATTENDEE:mailto:a@b,c\r\nEND:VCALENDAR\r\n",
+        );
+        let xml = to_xml(&comps).unwrap();
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+    }
+
+    #[test]
+    fn single_component_comma_list_structured_round_trips() {
+        // One component holding a comma list must stay distinguishable from
+        // two components.
+        let comps = components("BEGIN:VCARD\r\nVERSION:4.0\r\nN:Philip,Paul\r\nEND:VCARD\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert!(xml.contains("<n><surname>Philip</surname><surname>Paul</surname></n>"));
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+    }
+
+    #[test]
+    fn rrule_extension_part_keeps_hyphen() {
+        let comps =
+            components("BEGIN:VCALENDAR\r\nRRULE:FREQ=DAILY;X-FOO=bar\r\nEND:VCALENDAR\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+    }
+
+    #[test]
+    fn structured_overflow_components_survive() {
+        // Lenient real-world data carries more components than the RFC
+        // field list; they travel as trailing <text> elements.
+        let comps =
+            components("BEGIN:VCARD\r\nVERSION:4.0\r\nADR:a;b;c;d;e;f;g;h\r\nEND:VCARD\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+
+        let comps = components("BEGIN:VCARD\r\nVERSION:4.0\r\nGENDER:M;F;X\r\nEND:VCARD\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+
+        let comps =
+            components("BEGIN:VCALENDAR\r\nREQUEST-STATUS:2.0;OK;data;extra\r\nEND:VCALENDAR\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+    }
+
+    #[test]
+    fn unparseable_date_values_travel_verbatim() {
+        // Raw-fallback date/time values must not be compacted into a
+        // different (still unparseable) string.
+        let comps = components(
+            "BEGIN:VCALENDAR\r\nX-T;VALUE=TIME:12:30\r\nDTSTART:2026-02-30\r\nEND:VCALENDAR\r\n",
+        );
+        let xml = to_xml(&comps).unwrap();
+        let back = from_xml(&xml).unwrap();
+        assert_eq!(back[0].prop("X-T").unwrap().value, "12:30");
+        assert_eq!(back[0].prop("DTSTART").unwrap().value, "2026-02-30");
+    }
+
+    #[test]
+    fn unparseable_utc_offset_travels_verbatim() {
+        let comps = components("BEGIN:VCALENDAR\r\nTZOFFSETFROM:ab:cd\r\nEND:VCALENDAR\r\n");
+        let xml = to_xml(&comps).unwrap();
+        let back = from_xml(&xml).unwrap();
+        assert_eq!(back[0].prop("TZOFFSETFROM").unwrap().value, "ab:cd");
+    }
+
+    #[test]
+    fn unrecognized_value_type_name_round_trips() {
+        let comps =
+            components("BEGIN:VCALENDAR\r\nX-PROP;VALUE=SOMEFUTURE:data\r\nEND:VCALENDAR\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert!(xml.contains("<somefuture>data</somefuture>"));
+        assert_eq!(from_xml(&xml).unwrap(), comps);
+    }
+
+    #[test]
+    fn nested_component_in_vcard_errors_loudly() {
+        // RFC 6351 has no nested-component representation; silent dropping
+        // is not acceptable.
+        let comps = components(
+            "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:A\r\nBEGIN:X-NESTED\r\nEND:X-NESTED\r\nEND:VCARD\r\n",
+        );
+        assert!(comps[0].components().next().is_some());
+        let err = to_xml(&comps).unwrap_err();
+        assert!(
+            err.message.contains("cannot be represented"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn geo_value_float_round_trips() {
+        // A VALUE param matching the registry default keeps the registry's
+        // structured multiplicity, so GEO;VALUE=FLOAT:1.5 is a
+        // one-component structured float. The redundant param has no
+        // representation in jCal/xCal (the slot shape and type name are
+        // identical without it), so both canonicalize it away: the round
+        // trip yields plain GEO:1.5 with the same typed value, exactly as
+        // jCal does.
+        let comps = components("BEGIN:VCALENDAR\r\nGEO;VALUE=FLOAT:1.5\r\nEND:VCALENDAR\r\n");
+        let xml = to_xml(&comps).unwrap();
+        assert!(xml.contains("<latitude>1.5</latitude>"), "{xml}");
+        let canonical = components("BEGIN:VCALENDAR\r\nGEO:1.5\r\nEND:VCALENDAR\r\n");
+        assert_eq!(from_xml(&xml).unwrap(), canonical);
+    }
+
+    #[test]
+    fn bare_vcard_param_round_trips() {
+        let comps = components("BEGIN:VCARD\r\nVERSION:3.0\r\nTEL;HOME:+441234\r\nEND:VCARD\r\n");
+        let xml = to_xml(&comps).unwrap();
+        let back = from_xml(&xml).unwrap();
+        assert_eq!(
+            back[0].prop("TEL").unwrap().params[0].values,
+            Vec::<String>::new()
+        );
+        assert_eq!(back, comps);
     }
 }
