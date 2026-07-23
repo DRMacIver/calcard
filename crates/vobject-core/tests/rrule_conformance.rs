@@ -22,7 +22,11 @@ fn fixtures() -> PathBuf {
         .unwrap()
 }
 
-fn expand_strings(rule: &str, dtstart: DateOrDateTime, limit: usize) -> Result<Vec<String>, String> {
+fn expand_strings(
+    rule: &str,
+    dtstart: DateOrDateTime,
+    limit: usize,
+) -> Result<Vec<String>, String> {
     let recur = Recur::parse(rule).map_err(|e| e.to_string())?;
     let iter = expand(&recur, dtstart, ExpandLimits::default()).map_err(|e| e.to_string())?;
     Ok(iter.take(limit).map(|d| d.to_string()).collect())
@@ -50,15 +54,14 @@ fn libical_icalrecur_expectations() {
             } else {
                 i.split(',').map(|s| s.trim().to_string()).collect()
             };
-            cases.push((
-                comment.clone(),
-                rrule.clone(),
-                dtstart.clone(),
-                instances,
-            ));
+            cases.push((comment.clone(), rrule.clone(), dtstart.clone(), instances));
         }
     }
-    assert!(cases.len() >= 140, "only parsed {} libical cases", cases.len());
+    assert!(
+        cases.len() >= 140,
+        "only parsed {} libical cases",
+        cases.len()
+    );
 
     let mut failures = Vec::new();
     for (comment, rule, start, expected) in &cases {
@@ -142,13 +145,16 @@ fn libical_rscale_expectations() {
             } else if let Some(d) = line.strip_prefix("DTSTART:") {
                 dtstart = d.to_string();
             } else if let Some(i) = line.strip_prefix("INSTANCES:") {
-                let instances: Vec<String> =
-                    i.split(',').map(|s| s.trim().to_string()).collect();
+                let instances: Vec<String> = i.split(',').map(|s| s.trim().to_string()).collect();
                 cases.push((comment.clone(), rrule.clone(), dtstart.clone(), instances));
             }
         }
     }
-    assert!(cases.len() >= 30, "only parsed {} RSCALE cases", cases.len());
+    assert!(
+        cases.len() >= 30,
+        "only parsed {} RSCALE cases",
+        cases.len()
+    );
 
     let mut failures = Vec::new();
     let mut checked = 0;
@@ -174,7 +180,8 @@ fn libical_rscale_expectations() {
         // of new moons and solar terms; ICU4C (libical's backend) puts the
         // next one in 2109, ICU4X (ours) in 2139. Both agree on 2014. Only
         // the agreed prefix is compared for this rule.
-        let backend_divergent = rule == "RSCALE=CHINESE;FREQ=YEARLY;BYMONTHDAY=10;BYMONTH=9L;SKIP=OMIT;COUNT=2";
+        let backend_divergent =
+            rule == "RSCALE=CHINESE;FREQ=YEARLY;BYMONTHDAY=10;BYMONTH=9L;SKIP=OMIT;COUNT=2";
 
         let dtstart = DateOrDateTime::parse(start).unwrap();
         let rule_is_finite = rule.to_ascii_uppercase().contains("COUNT=")

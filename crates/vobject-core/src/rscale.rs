@@ -110,11 +110,7 @@ impl<'c> Engine<'c> {
 
     /// Resolve a requested month within a year, applying SKIP for months
     /// the year does not contain. Returns the chosen slot, or None (OMIT).
-    fn resolve_month(
-        &self,
-        months: &[MonthSlot],
-        want: RecurMonth,
-    ) -> Option<MonthSlot> {
+    fn resolve_month(&self, months: &[MonthSlot], want: RecurMonth) -> Option<MonthSlot> {
         let found = months
             .iter()
             .find(|s| s.month.number() == want.month && s.month.is_leap() == want.leap);
@@ -184,12 +180,7 @@ impl<'c> Engine<'c> {
     }
 
     /// Resolve a (possibly negative) day-of-year with SKIP.
-    fn resolve_year_day(
-        &self,
-        months: &[MonthSlot],
-        days_in_year: i64,
-        day: i16,
-    ) -> Option<i64> {
+    fn resolve_year_day(&self, months: &[MonthSlot], days_in_year: i64, day: i16) -> Option<i64> {
         let year_start = months[0].first_iso;
         let target = if day > 0 {
             day as i64
@@ -363,9 +354,14 @@ pub fn expand_rscale(
         } else {
             recur.by_second.clone()
         };
+        // Sorted and deduplicated: the cross product below must not scale
+        // with duplicated entries in hostile input.
         hours.sort_unstable();
+        hours.dedup();
         minutes.sort_unstable();
+        minutes.dedup();
         seconds.sort_unstable();
+        seconds.dedup();
         let mut ts = Vec::new();
         for &h in &hours {
             for &m in &minutes {
@@ -389,7 +385,20 @@ pub fn expand_rscale(
     let mut last_emitted: Option<i64> = None;
     let mut empty_periods = 0usize;
     let count_target = recur.count;
-    let max_year = start_year + limits.max_years;
+    // Mirror the Gregorian engine's clamp at year 9999: stepping past the
+    // last recurrence-calendar year that reaches into the representable ISO
+    // range must end the expansion, not error away the valid instances.
+    let last_representable_year = to_icu_iso(Date {
+        year: 9999,
+        month: 12,
+        day: 31,
+    })?
+    .to_calendar(Ref(&cal))
+    .year()
+    .extended_year();
+    let max_year = start_year
+        .saturating_add(limits.max_years)
+        .min(last_representable_year);
 
     // Period cursor.
     let mut year = start_year;
@@ -538,14 +547,17 @@ pub fn expand_rscale(
                     }
                 }
                 month_ordinal += interval;
-                while month_ordinal > months.len() as i64 {
-                    month_ordinal -= months.len() as i64;
+                // Month counts differ per year (12 vs 13 months in
+                // lunisolar calendars), so each peeled year must use its
+                // own count, not the loop-entry year's.
+                let mut months_in_year = months.len() as i64;
+                while month_ordinal > months_in_year {
+                    month_ordinal -= months_in_year;
                     year += 1;
-                    // Month counts differ per year; re-check against the
-                    // new year on the next loop iteration.
                     if year > max_year {
                         break 'periods;
                     }
+                    months_in_year = engine.months_of_year(year)?.len() as i64;
                 }
             }
             other => {
@@ -647,7 +659,11 @@ mod tests {
     #[test]
     fn gregorian_skip_backward_monthly() {
         assert_eq!(
-            run("RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=BACKWARD;COUNT=4", "20140131", 10),
+            run(
+                "RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=BACKWARD;COUNT=4",
+                "20140131",
+                10
+            ),
             vec!["20140131", "20140228", "20140331", "20140430"]
         );
     }
@@ -655,7 +671,11 @@ mod tests {
     #[test]
     fn gregorian_skip_forward_monthly() {
         assert_eq!(
-            run("RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=FORWARD;COUNT=4", "20140131", 10),
+            run(
+                "RSCALE=GREGORIAN;FREQ=MONTHLY;SKIP=FORWARD;COUNT=4",
+                "20140131",
+                10
+            ),
             vec!["20140131", "20140301", "20140331", "20140501"]
         );
     }
@@ -674,6 +694,45 @@ mod tests {
             run("RSCALE=CHINESE;FREQ=YEARLY;UNTIL=20180101", "20130210", 10),
             vec!["20130210", "20140131", "20150219", "20160208", "20170128"]
         );
+    }
+
+    #[test]
+    fn gregorian_rscale_matches_control_at_year_range_end() {
+        // Stepping to year 10000 must end the expansion (like the Gregorian
+        // engine's clamp at 9999), not error away the valid instances.
+        let start = DateOrDateTime::parse("99980101").unwrap();
+        let recur = Recur::parse("RSCALE=GREGORIAN;FREQ=YEARLY;SKIP=FORWARD;COUNT=5").unwrap();
+        let got: Vec<String> = expand_rscale(&recur, start, ExpandLimits::default())
+            .unwrap()
+            .into_iter()
+            .map(|d| d.to_string())
+            .collect();
+        let control_rule = Recur::parse("FREQ=YEARLY;COUNT=5").unwrap();
+        let control: Vec<String> =
+            crate::rrule::expand(&control_rule, start, ExpandLimits::default())
+                .unwrap()
+                .map(|d| d.to_string())
+                .collect();
+        assert_eq!(got, control);
+        assert_eq!(got, vec!["99980101", "99990101"]);
+    }
+
+    #[test]
+    fn chinese_monthly_interval_spanning_leap_years() {
+        // INTERVAL month-slot arithmetic across year boundaries must account
+        // for each peeled year's own month count (12 vs 13 in lunisolar
+        // years): jumping 30 slots at once must land on the same month as
+        // counting 30 slots one at a time.
+        let by_thirty = run(
+            "RSCALE=CHINESE;FREQ=MONTHLY;INTERVAL=30;COUNT=2",
+            "20230122",
+            10,
+        );
+        let one_by_one = run("RSCALE=CHINESE;FREQ=MONTHLY;COUNT=31", "20230122", 40);
+        assert_eq!(by_thirty[1], one_by_one[30]);
+        // 2023 has 13 months (leap 2) and 2024 has 12, so slot 30 is the
+        // sixth month of Chinese 2025 (the buggy jump gave 20250527).
+        assert_eq!(by_thirty, vec!["20230122", "20250625"]);
     }
 
     #[test]

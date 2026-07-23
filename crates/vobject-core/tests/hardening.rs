@@ -18,7 +18,11 @@ fn expand_all(rule: &str, start: &str, cap: usize) -> Vec<DateOrDateTime> {
 
 #[test]
 fn daily_huge_interval_terminates() {
-    let out = expand_all("FREQ=DAILY;INTERVAL=10000000;COUNT=5", "20260101T100000", 10);
+    let out = expand_all(
+        "FREQ=DAILY;INTERVAL=10000000;COUNT=5",
+        "20260101T100000",
+        10,
+    );
     // The first instance is DTSTART itself; the next is ~27000 years out of
     // range, so expansion just ends.
     assert_eq!(out.len(), 1);
@@ -26,7 +30,11 @@ fn daily_huge_interval_terminates() {
 
 #[test]
 fn weekly_huge_interval_terminates() {
-    let out = expand_all("FREQ=WEEKLY;INTERVAL=10000000;COUNT=5", "20260101T100000", 10);
+    let out = expand_all(
+        "FREQ=WEEKLY;INTERVAL=10000000;COUNT=5",
+        "20260101T100000",
+        10,
+    );
     assert_eq!(out.len(), 1);
 }
 
@@ -58,6 +66,56 @@ fn hourly_huge_interval_terminates() {
         10,
     );
     assert_eq!(out.len(), 1);
+}
+
+#[test]
+fn duplicated_by_time_lists_are_deduplicated() {
+    // The BYHOUR x BYMINUTE x BYSECOND time set used to be built as a full
+    // cross product without deduplication, so heavily duplicated lists cost
+    // O(n^3) time and memory even with a tiny COUNT.
+    let n = 1000;
+    let nines: String = vec!["9"; n].join(",");
+    let zeros: String = vec!["0"; n].join(",");
+    let rule = format!("FREQ=DAILY;COUNT=2;BYHOUR={nines};BYMINUTE={zeros};BYSECOND={zeros}");
+    let started = std::time::Instant::now();
+    let out = expand_all(&rule, "19970902T090000", 10);
+    assert_eq!(
+        out,
+        expand_all(
+            "FREQ=DAILY;COUNT=2;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+            "19970902T090000",
+            10
+        )
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "duplicated BY-time lists must not blow up the time-set cross product"
+    );
+}
+
+#[test]
+fn rscale_duplicated_by_time_lists_are_deduplicated() {
+    // Same as above for the RSCALE expansion path's mirror of the time set.
+    let n = 1000;
+    let nines: String = vec!["9"; n].join(",");
+    let zeros: String = vec!["0"; n].join(",");
+    let rule = format!(
+        "RSCALE=GREGORIAN;SKIP=FORWARD;FREQ=MONTHLY;COUNT=2;BYHOUR={nines};BYMINUTE={zeros};BYSECOND={zeros}"
+    );
+    let started = std::time::Instant::now();
+    let out = expand_all(&rule, "19970902T090000", 10);
+    assert_eq!(
+        out,
+        expand_all(
+            "RSCALE=GREGORIAN;SKIP=FORWARD;FREQ=MONTHLY;COUNT=2;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+            "19970902T090000",
+            10
+        )
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "duplicated BY-time lists must not blow up the time-set cross product"
+    );
 }
 
 #[test]
@@ -119,7 +177,11 @@ fn minutely_sparse_byhour_crosses_days() {
 fn secondly_interval_alignment_preserved_across_fast_forward() {
     // Interval 7 from 01:00:00; instances must stay congruent to DTSTART
     // modulo 7 seconds even after jumping to hour 3.
-    let out = expand_all("FREQ=SECONDLY;INTERVAL=7;BYHOUR=3;COUNT=3", "20260101T010000", 10);
+    let out = expand_all(
+        "FREQ=SECONDLY;INTERVAL=7;BYHOUR=3;COUNT=3",
+        "20260101T010000",
+        10,
+    );
     let start = match DateOrDateTime::parse("20260101T010000").unwrap() {
         DateOrDateTime::DateTime(dt) => dt,
         DateOrDateTime::Date(_) => unreachable!(),
@@ -148,7 +210,10 @@ fn max_empty_periods_is_honored_literally() {
         ..ExpandLimits::default()
     };
     let out: Vec<_> = expand(&recur, dtstart, tight).unwrap().take(5).collect();
-    assert!(out.is_empty(), "10 empty periods must end expansion, got {out:?}");
+    assert!(
+        out.is_empty(),
+        "10 empty periods must end expansion, got {out:?}"
+    );
 
     let out: Vec<_> = expand(&recur, dtstart, ExpandLimits::default())
         .unwrap()
@@ -247,7 +312,9 @@ fn xcal_depth_bomb_is_an_error() {
     // Balanced 100k-deep nesting: deep enough to overflow the stack in both
     // the recursive tree walk and the recursive node Drop unless a depth cap
     // rejects it first.
-    let mut doc = String::from("<?xml version=\"1.0\"?><icalendar xmlns=\"urn:ietf:params:xml:ns:icalendar-2.0\">");
+    let mut doc = String::from(
+        "<?xml version=\"1.0\"?><icalendar xmlns=\"urn:ietf:params:xml:ns:icalendar-2.0\">",
+    );
     for _ in 0..100_000 {
         doc.push_str("<vcalendar><components>");
     }
@@ -324,7 +391,9 @@ fn xcal_icalendar_group_round_trips() {
     let back = vobject_core::xcal::from_xml(&xml).unwrap();
     let prop = back[0].properties().next().unwrap();
     assert!(
-        prop.group.as_deref().is_some_and(|g| g.eq_ignore_ascii_case("ITEM1")),
+        prop.group
+            .as_deref()
+            .is_some_and(|g| g.eq_ignore_ascii_case("ITEM1")),
         "group lost: {prop:?}"
     );
     assert!(prop.name.eq_ignore_ascii_case("X-EMAIL"), "{prop:?}");
@@ -447,7 +516,7 @@ fn rscale_chinese_monthly_byday_is_sane() {
     let out = expand_rscale_all(
         "RSCALE=CHINESE;FREQ=MONTHLY;BYDAY=1MO;COUNT=6",
         "20260101",
-        10
+        10,
     );
     assert_eq!(out.len(), 6);
     let mut prev = None;
@@ -474,9 +543,7 @@ fn folding_never_splits_after_equals() {
     // some iteration folds right after an '=' — where, on lenient
     // reparse, the QP joiner would eat the '=' as a soft break and
     // corrupt the value (found via py-vobject's radicale_1238 documents).
-    let value: String = std::iter::repeat("=E5=8C=97=E4=BA=AC")
-        .take(10)
-        .collect();
+    let value: String = std::iter::repeat_n("=E5=8C=97=E4=BA=AC", 10).collect();
     for pad in 0..8 {
         let mut prop = Property::new(format!("X{}", "A".repeat(pad)), &value);
         prop.params.push(Param::new("ENCODING", "QUOTED-PRINTABLE"));
@@ -509,5 +576,8 @@ fn xcal_underscore_names_round_trip() {
     let xml = vobject_core::xcal::to_xml(&[comp.clone()]).unwrap();
     let back = vobject_core::xcal::from_xml(&xml).unwrap();
     let prop = back[0].properties().next().unwrap();
-    assert!(prop.name.eq_ignore_ascii_case("oppo_recent_call"), "{prop:?}");
+    assert!(
+        prop.name.eq_ignore_ascii_case("oppo_recent_call"),
+        "{prop:?}"
+    );
 }

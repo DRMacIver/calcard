@@ -89,7 +89,8 @@ impl Property {
 
     /// The first value of the first parameter with the given name.
     pub fn param_value(&self, name: &str) -> Option<&str> {
-        self.param(name).and_then(|p| p.values.first().map(|s| s.as_str()))
+        self.param(name)
+            .and_then(|p| p.values.first().map(|s| s.as_str()))
     }
 
     /// All values of all parameters with the given name, flattened.
@@ -192,7 +193,10 @@ impl Component {
 impl fmt::Display for Component {
     /// Serializes with default options (CRLF, folded at 75 octets).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&crate::write::write_component(self, &crate::write::WriteOptions::default()))
+        f.write_str(&crate::write::write_component(
+            self,
+            &crate::write::WriteOptions::default(),
+        ))
     }
 }
 

@@ -229,7 +229,13 @@ mod tests {
 
     #[test]
     fn caret_round_trip() {
-        let cases = ["plain", "care^t", "quo\"te", "new\nline", "^n literal ^' mix ^^"];
+        let cases = [
+            "plain",
+            "care^t",
+            "quo\"te",
+            "new\nline",
+            "^n literal ^' mix ^^",
+        ];
         for case in cases {
             assert_eq!(caret_decode(&caret_encode(case)), case);
         }

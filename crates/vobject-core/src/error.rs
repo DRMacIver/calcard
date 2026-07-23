@@ -204,7 +204,10 @@ impl fmt::Display for RepairKind {
                 write!(f, "kept nonstandard name {n:?}")
             }
             RepairKind::ClosedUnterminatedQuote => {
-                write!(f, "closed unterminated quoted parameter value at end of line")
+                write!(
+                    f,
+                    "closed unterminated quoted parameter value at end of line"
+                )
             }
             RepairKind::KeptStrayQuote => {
                 write!(f, "kept stray double quote in parameter value")

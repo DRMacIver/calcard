@@ -190,9 +190,9 @@ fn zero_repairs_implies_strict_success(tc: hegel::TestCase) {
         let strict = parse(&input, &ParseOptions::strict());
         match strict {
             Ok(strict) => assert_eq!(strict.components, lenient.components),
-            Err(e) => panic!(
-                "lenient parse of {input:?} had no repairs but strict parse failed: {e}"
-            ),
+            Err(e) => {
+                panic!("lenient parse of {input:?} had no repairs but strict parse failed: {e}")
+            }
         }
     }
 }
@@ -389,8 +389,7 @@ fn rrule_expansion_is_sane(tc: hegel::TestCase) {
     }
     if tc.draw(generators::booleans()) {
         let day = tc.draw(generators::sampled_from(vec![
-            "MO", "TU", "WE", "TH", "FR", "SA", "SU", "1MO", "-1FR", "2TU", "-2SA", "53MO",
-            "-53FR",
+            "MO", "TU", "WE", "TH", "FR", "SA", "SU", "1MO", "-1FR", "2TU", "-2SA", "53MO", "-53FR",
         ]));
         rule.push_str(&format!(";BYDAY={day}"));
     }
@@ -435,7 +434,11 @@ fn rrule_expansion_is_sane(tc: hegel::TestCase) {
     // deliberately including both edges (year-0 week math underflowed and
     // year-9999 stepping overflowed before the hardening fixes).
     let year = if tc.draw(generators::booleans()) {
-        tc.draw(generators::integers::<i32>().min_value(1970).max_value(2100))
+        tc.draw(
+            generators::integers::<i32>()
+                .min_value(1970)
+                .max_value(2100),
+        )
     } else {
         tc.draw(generators::integers::<i32>().min_value(0).max_value(9999))
     };
@@ -509,13 +512,19 @@ fn duration_parse_is_total(tc: hegel::TestCase) {
         let sign = tc.draw(generators::sampled_from(vec!["", "-", "+"]));
         let n = tc.draw(generators::integers::<u128>());
         let unit = tc.draw(generators::sampled_from(vec!["W", "D", "H", "M", "S"]));
-        let t = if matches!(unit, "H" | "M" | "S") { "T" } else { "" };
+        let t = if matches!(unit, "H" | "M" | "S") {
+            "T"
+        } else {
+            ""
+        };
         format!("{sign}P{t}{n}{unit}")
     } else {
         tc.draw(generators::text().max_size(30))
     };
     if let Ok(d) = Duration::parse(&s) {
-        let total = d.checked_total_seconds().expect("parsed duration overflows");
+        let total = d
+            .checked_total_seconds()
+            .expect("parsed duration overflows");
         let redisplayed = Duration::parse(&d.to_string()).unwrap();
         assert_eq!(redisplayed.total_seconds(), total, "{s:?}");
     }
@@ -566,7 +575,11 @@ fn rscale_gregorian_matches_gregorian_engine(tc: hegel::TestCase) {
         }
     }
 
-    let year = tc.draw(generators::integers::<i32>().min_value(1990).max_value(2080));
+    let year = tc.draw(
+        generators::integers::<i32>()
+            .min_value(1990)
+            .max_value(2080),
+    );
     let month = tc.draw(generators::integers::<u8>().min_value(1).max_value(12));
     let day = tc.draw(generators::integers::<u8>().min_value(1).max_value(28));
     let dtstart_s = format!("{year:04}{month:02}{day:02}T060000");
@@ -575,12 +588,8 @@ fn rscale_gregorian_matches_gregorian_engine(tc: hegel::TestCase) {
     let gregorian_rule = Recur::parse(&rule).unwrap();
     let rscale_rule = Recur::parse(&format!("RSCALE=GREGORIAN;SKIP=OMIT;{rule}")).unwrap();
 
-    let via_gregorian: Vec<String> = match expand(
-        &gregorian_rule,
-        dtstart,
-        ExpandLimits::default(),
-    )
-    .unwrap()
+    let via_gregorian: Vec<String> = match expand(&gregorian_rule, dtstart, ExpandLimits::default())
+        .unwrap()
     {
         Expansion::Gregorian(iter) => iter.take(count as usize).map(|d| d.to_string()).collect(),
         Expansion::Rscale(_) => panic!("plain rule must use the Gregorian engine"),

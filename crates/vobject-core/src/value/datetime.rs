@@ -71,9 +71,14 @@ impl Date {
         if self.month < 3 {
             y -= 1;
         }
-        let dow =
-            (y + y / 4 - y / 100 + y / 400 + T[(self.month - 1) as usize] + self.day as i32) % 7;
-        match dow.rem_euclid(7) {
+        // Floored division: y is -1 for year-0 January/February, where
+        // truncation toward zero would drop the leap-count corrections.
+        let dow = (y + y.div_euclid(4) - y.div_euclid(100)
+            + y.div_euclid(400)
+            + T[(self.month - 1) as usize]
+            + self.day as i32)
+            .rem_euclid(7);
+        match dow {
             0 => Weekday::Sunday,
             1 => Weekday::Monday,
             2 => Weekday::Tuesday,
@@ -192,7 +197,7 @@ impl Weekday {
 
     /// Days from `self` to `other` going forward (0-6).
     pub fn days_until(&self, other: Weekday) -> u8 {
-        ((other.number0() + 7 - self.number0()) % 7) as u8
+        (other.number0() + 7 - self.number0()) % 7
     }
 
     /// Monday = 0 ... Sunday = 6.
@@ -411,10 +416,50 @@ mod tests {
 
     #[test]
     fn weekday_computation() {
-        assert_eq!(Date::parse("20260722").unwrap().weekday(), Weekday::Wednesday);
-        assert_eq!(Date::parse("20000101").unwrap().weekday(), Weekday::Saturday);
-        assert_eq!(Date::parse("19700101").unwrap().weekday(), Weekday::Thursday);
-        assert_eq!(Date::parse("20240229").unwrap().weekday(), Weekday::Thursday);
+        assert_eq!(
+            Date::parse("20260722").unwrap().weekday(),
+            Weekday::Wednesday
+        );
+        assert_eq!(
+            Date::parse("20000101").unwrap().weekday(),
+            Weekday::Saturday
+        );
+        assert_eq!(
+            Date::parse("19700101").unwrap().weekday(),
+            Weekday::Thursday
+        );
+        assert_eq!(
+            Date::parse("20240229").unwrap().weekday(),
+            Weekday::Thursday
+        );
+    }
+
+    #[test]
+    fn weekday_year_zero() {
+        // Sakamoto's algorithm with truncating division got year-0
+        // January/February wrong (y becomes -1).
+        assert_eq!(
+            Date::parse("00000101").unwrap().weekday(),
+            Weekday::Saturday
+        );
+        assert_eq!(Date::parse("00000229").unwrap().weekday(), Weekday::Tuesday);
+        assert_eq!(
+            Date::parse("00000301").unwrap().weekday(),
+            Weekday::Wednesday
+        );
+    }
+
+    #[test]
+    fn weekday_agrees_with_ordinal_math() {
+        // The ordinal epoch 0000-03-01 is a Wednesday (number0 == 2), so
+        // weekday() must equal (to_ordinal() + 2) mod 7 everywhere.
+        let last = Date::parse("99991231").unwrap().to_ordinal();
+        // Start at 0000-01-01 (ordinal -60), before the ordinal epoch, so
+        // the year-0 January/February corner is covered too.
+        for ord in (-60..=last).step_by(9973).chain([-1, -31, -59]) {
+            let d = Date::from_ordinal(ord).unwrap();
+            assert_eq!(d.weekday().number0() as i64, (ord + 2).rem_euclid(7), "{d}");
+        }
     }
 
     #[test]

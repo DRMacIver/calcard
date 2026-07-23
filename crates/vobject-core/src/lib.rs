@@ -33,9 +33,9 @@
 
 pub mod contentline;
 pub mod error;
-pub mod jcal;
 pub mod escape;
 pub mod fold;
+pub mod jcal;
 pub mod lines;
 pub mod model;
 pub mod parse;

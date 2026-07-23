@@ -18,9 +18,7 @@ use crate::model::{Param, Property};
 
 /// Is this a valid strict-grammar name (property, group, or parameter)?
 fn is_strict_name(s: &str) -> bool {
-    !s.is_empty()
-        && s.chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 /// Lenient names: anything non-empty without structural or control
@@ -95,9 +93,9 @@ impl<'a, 'r> LineParser<'a, 'r> {
             None => (None, name_section),
         };
 
-        let strict_ok = is_strict_name(name) && group.map_or(true, is_strict_name);
+        let strict_ok = is_strict_name(name) && group.is_none_or(is_strict_name);
         if self.lenient() {
-            if !(is_lenient_name(name) && group.map_or(true, is_lenient_name)) {
+            if !(is_lenient_name(name) && group.is_none_or(is_lenient_name)) {
                 return Err(self.err(ErrorKind::InvalidName(name_section.to_string())));
             }
             if !strict_ok {
@@ -208,9 +206,9 @@ impl<'a, 'r> LineParser<'a, 'r> {
                     let mut out = inner;
                     if !matches!(self.peek(), Some(',') | Some(';') | Some(':') | None) {
                         if !self.lenient() {
-                            return Err(self.err(ErrorKind::InvalidParamValue(
-                                self.rest.to_string(),
-                            )));
+                            return Err(
+                                self.err(ErrorKind::InvalidParamValue(self.rest.to_string()))
+                            );
                         }
                         self.repair(RepairKind::KeptStrayQuote);
                         let extra = self.take_until(&[',', ';', ':']);
@@ -380,10 +378,7 @@ mod tests {
     #[test]
     fn strict_rejects_missing_colon() {
         assert_eq!(strict("NOCOLON").unwrap_err().kind, ErrorKind::MissingColon);
-        assert_eq!(
-            strict("X;A=b").unwrap_err().kind,
-            ErrorKind::MissingColon
-        );
+        assert_eq!(strict("X;A=b").unwrap_err().kind, ErrorKind::MissingColon);
     }
 
     #[test]

@@ -53,7 +53,10 @@ fn icalendar_group_prefix_round_trips() {
     let j = to_jcal(&comp);
     assert_eq!(j[1][0][0], json!("item1.x-thing"));
     let back = from_jcal(&j.to_string()).unwrap();
-    assert_eq!(back[0].properties().next().unwrap().group.as_deref(), Some("item1"));
+    assert_eq!(
+        back[0].properties().next().unwrap().group.as_deref(),
+        Some("item1")
+    );
     assert_eq!(back[0].properties().next().unwrap().name, "X-THING");
 }
 
@@ -104,8 +107,9 @@ fn vcard3_dialect_detected_from_version() {
 
 #[test]
 fn jcard_two_element_form_is_accepted() {
-    let back = from_jcal(r#"["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Alice"]]]"#)
-        .unwrap();
+    let back =
+        from_jcal(r#"["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Alice"]]]"#)
+            .unwrap();
     assert_eq!(back.len(), 1);
     assert!(back[0].is("VCARD"));
     assert_eq!(back[0].prop("FN").unwrap().value, "Alice");
@@ -205,8 +209,7 @@ fn corpus() -> Vec<PathBuf> {
                 let name = path.file_name().unwrap().to_string_lossy().to_string();
                 let ext = path.extension().map(|e| e.to_string_lossy().to_string());
                 if matches!(ext.as_deref(), Some("ics") | Some("vcf"))
-                    || (path.parent().unwrap().file_name().unwrap() == "fuzz"
-                        && name != "LICENSE")
+                    || (path.parent().unwrap().file_name().unwrap() == "fuzz" && name != "LICENSE")
                 {
                     files.push(path);
                 }
@@ -230,9 +233,7 @@ fn corpus_round_trips_through_jcal() {
             // recursion limit; the value API supports the full 512 cap.
             let back = from_jcal(&j1.to_string())
                 .or_else(|_| from_jcal_value(&j1))
-                .unwrap_or_else(|e| {
-                    panic!("from_jcal failed on {}: {e}\n{j1}", path.display())
-                });
+                .unwrap_or_else(|e| panic!("from_jcal failed on {}: {e}\n{j1}", path.display()));
             assert_eq!(back.len(), 1, "{}", path.display());
             if back[0] == *comp {
                 model_equal += 1;

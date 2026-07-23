@@ -49,6 +49,12 @@
 //!    legitimate empty value; the generator only keeps empty values in
 //!    first or last position, where a single separator survives their
 //!    parser.
+//! 6. No property value beginning with ':': after splitting off the name
+//!    and parameters, the `ical` crate's parser advances with
+//!    `trim_start_matches(':')`, which eats every leading colon of the
+//!    value (`A::` parses as an empty value instead of ":"). A leading
+//!    colon is a perfectly legal value octet, so values are generated
+//!    without one.
 
 use hegel::generators;
 use vobject_core::escape::{caret_encode, escape_text};
@@ -79,6 +85,10 @@ fn draw_text(tc: &hegel::TestCase) -> String {
         .collect();
     while s.ends_with(|c: char| c.is_whitespace() && c != '\n') {
         s.pop();
+    }
+    // Deviation 6: their parser eats every leading ':' of a value.
+    while s.starts_with(':') {
+        s.remove(0);
     }
     s
 }
@@ -213,8 +223,11 @@ fn write_for_ical_crate(tc: &hegel::TestCase, components: &[Component]) -> Strin
 // ---------------------------------------------------------------------------
 // Comparison helpers
 
+/// Parameters as the ical crate reports them: (NAME, values) pairs.
+type ExpectedParams = Option<Vec<(String, Vec<String>)>>;
+
 /// What the ical crate should report for one of our properties.
-fn expected_property(prop: &Property) -> (String, Option<Vec<(String, Vec<String>)>>, Option<String>) {
+fn expected_property(prop: &Property) -> (String, ExpectedParams, Option<String>) {
     let name = match &prop.group {
         Some(g) => format!("{g}.{}", prop.name),
         None => prop.name.clone(),
@@ -346,7 +359,11 @@ fn ical_crate_parses_our_vcard_output(tc: hegel::TestCase) {
     let wire = write_for_ical_crate(&tc, &cards);
 
     let parsed: Vec<_> = ical::VcardParser::new(wire.as_bytes()).collect();
-    assert_eq!(parsed.len(), cards.len(), "card count diverged\nwire:\n{wire}");
+    assert_eq!(
+        parsed.len(),
+        cards.len(),
+        "card count diverged\nwire:\n{wire}"
+    );
 
     for (ours, theirs) in cards.iter().zip(parsed) {
         let theirs = theirs.unwrap_or_else(|e| panic!("ical crate failed: {e}\nwire:\n{wire}"));
