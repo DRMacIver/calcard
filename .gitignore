@@ -5,6 +5,7 @@ __pycache__/
 dist/
 *.egg-info/
 .hypothesis/
+.pytest_cache/
 .hegel/
 .coverage
 .claude/
