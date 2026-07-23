@@ -185,14 +185,14 @@ impl Config {
                 utc,
             });
         }
-        let by_hour = if !recur.by_hour.is_empty() {
+        let mut by_hour = if !recur.by_hour.is_empty() {
             recur.by_hour.clone()
         } else if !sub_daily {
             vec![dtstart.time.hour]
         } else {
             Vec::new()
         };
-        let by_minute = if !recur.by_minute.is_empty() {
+        let mut by_minute = if !recur.by_minute.is_empty() {
             recur.by_minute.clone()
         } else if matches!(
             freq,
@@ -206,7 +206,7 @@ impl Config {
         } else {
             Vec::new()
         };
-        let by_second = if !recur.by_second.is_empty() {
+        let mut by_second = if !recur.by_second.is_empty() {
             recur.by_second.clone()
         } else if !matches!(freq, Frequency::Secondly) {
             vec![dtstart.time.second]
@@ -214,17 +214,22 @@ impl Config {
             Vec::new()
         };
 
+        // Order within the BY-time lists is not semantically meaningful
+        // (the time set is emitted sorted), so store them sorted and
+        // deduplicated: the BYHOUR x BYMINUTE x BYSECOND cross product must
+        // not scale with duplicated entries in hostile input.
+        by_hour.sort_unstable();
+        by_hour.dedup();
+        by_minute.sort_unstable();
+        by_minute.dedup();
+        by_second.sort_unstable();
+        by_second.dedup();
+
         let mut times = Vec::new();
         if !sub_daily {
-            let mut hours = by_hour.clone();
-            let mut minutes = by_minute.clone();
-            let mut seconds = by_second.clone();
-            hours.sort_unstable();
-            minutes.sort_unstable();
-            seconds.sort_unstable();
-            for &h in &hours {
-                for &m in &minutes {
-                    for &s in &seconds {
+            for &h in &by_hour {
+                for &m in &by_minute {
+                    for &s in &by_second {
                         if let Ok(t) = Time::new(h, m, s.min(60), utc) {
                             times.push(t);
                         }
@@ -359,16 +364,18 @@ fn yearly_days(cfg: &Config, year: i32) -> Vec<Date> {
                 let Ok(d) = Date::from_ordinal(start + i) else {
                     continue;
                 };
-                // Within selected weeks, BYDAY limits by weekday; other
-                // BY-day rules and BYMONTH also limit.
-                if !cfg.by_day.is_empty() && !cfg.by_day.iter().any(|&(_, wd)| wd == d.weekday()) {
+                // With no day-selecting rule at all, the RFC pins the
+                // day-of-week to DTSTART's; otherwise BYDAY (by weekday),
+                // BYMONTH, BYMONTHDAY, and BYYEARDAY all limit within the
+                // selected weeks.
+                if cfg.by_day.is_empty()
+                    && cfg.by_month_day.is_empty()
+                    && cfg.by_year_day.is_empty()
+                    && d.weekday() != cfg.dtstart.date.weekday()
+                {
                     continue;
                 }
-                if cfg.by_day.is_empty() && d.weekday() != cfg.dtstart.date.weekday() {
-                    // No BYDAY: the RFC pins the day-of-week to DTSTART's.
-                    continue;
-                }
-                if !cfg.by_month.is_empty() && !cfg.by_month.contains(&d.month) {
+                if !cfg.day_passes_limits(d) {
                     continue;
                 }
                 days.push(d);
@@ -724,12 +731,10 @@ impl RRuleIter {
                     match cfg.freq {
                         Frequency::Hourly => {
                             if hour_ok {
-                                let mut minutes = cfg.by_minute.clone();
-                                let mut seconds = cfg.by_second.clone();
-                                minutes.sort_unstable();
-                                seconds.sort_unstable();
-                                for &mm in &minutes {
-                                    for &ss in &seconds {
+                                // by_minute/by_second are stored sorted and
+                                // deduplicated.
+                                for &mm in &cfg.by_minute {
+                                    for &ss in &cfg.by_second {
                                         if let Ok(t) = Time::new(h, mm, ss.min(60), cfg.utc) {
                                             out.push(DateTime {
                                                 date: cur.date,
@@ -743,9 +748,7 @@ impl RRuleIter {
                         Frequency::Minutely => {
                             let minute_ok = cfg.by_minute.is_empty() || cfg.by_minute.contains(&m);
                             if hour_ok && minute_ok {
-                                let mut seconds = cfg.by_second.clone();
-                                seconds.sort_unstable();
-                                for &ss in &seconds {
+                                for &ss in &cfg.by_second {
                                     if let Ok(t) = Time::new(h, m, ss.min(60), cfg.utc) {
                                         out.push(DateTime {
                                             date: cur.date,
@@ -1156,6 +1159,34 @@ mod tests {
         assert_eq!(
             run("FREQ=YEARLY;COUNT=3", "19960229T090000", 10),
             vec!["19960229T090000", "20000229T090000", "20040229T090000"]
+        );
+    }
+
+    #[test]
+    fn byweekno_limited_by_bymonthday() {
+        // python-dateutil (the reference for this combination): BYMONTHDAY
+        // limits within the selected weeks; the DTSTART weekday pin only
+        // applies when no other day-selecting rule is present.
+        assert_eq!(
+            run(
+                "FREQ=YEARLY;BYWEEKNO=20;BYMONTHDAY=15",
+                "19970512T090000",
+                3
+            ),
+            vec!["19970515T090000", "19980515T090000", "20000515T090000"]
+        );
+    }
+
+    #[test]
+    fn byweekno_limited_by_byyearday() {
+        // python-dateutil reference, as above but with BYYEARDAY.
+        assert_eq!(
+            run(
+                "FREQ=YEARLY;BYWEEKNO=20;BYYEARDAY=135",
+                "19970512T090000",
+                3
+            ),
+            vec!["19970515T090000", "19980515T090000", "20010515T090000"]
         );
     }
 

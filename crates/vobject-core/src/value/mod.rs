@@ -464,9 +464,10 @@ impl Property {
         match self.param_value("VALUE").and_then(ValueType::from_name) {
             Some(vtype) => TypeInfo {
                 vtype,
-                multiplicity: if matches!(vtype, ValueType::Text) {
-                    // A VALUE=TEXT override on a structured property keeps
-                    // its structure only if the registry says so.
+                multiplicity: if vtype == default.vtype || matches!(vtype, ValueType::Text) {
+                    // A VALUE param merely restating the registry default
+                    // (GEO;VALUE=FLOAT), or a VALUE=TEXT override on a
+                    // structured property, keeps the registry multiplicity.
                     default.multiplicity
                 } else {
                     match default.multiplicity {
@@ -521,6 +522,26 @@ mod tests {
             p.typed_value(Dialect::ICalendar).unwrap(),
             Value::Date(vec![Date::new(2026, 7, 22).unwrap()])
         );
+    }
+
+    #[test]
+    fn redundant_value_param_keeps_multiplicity() {
+        // GEO;VALUE=FLOAT restates the registry default; it must not
+        // collapse the structured lat;lon multiplicity to Single.
+        let plain = prop("GEO", "37.386013;-122.082932")
+            .typed_value(Dialect::ICalendar)
+            .unwrap();
+        assert_eq!(plain, Value::Float(vec![37.386013, -122.082932]));
+        let mut with_param = prop("GEO", "37.386013;-122.082932");
+        with_param.params.push(Param::new("VALUE", "FLOAT"));
+        assert_eq!(with_param.typed_value(Dialect::ICalendar).unwrap(), plain);
+
+        // A genuinely overriding VALUE param still gets Single.
+        let mut overridden = prop("GEO", "geo:37.386013,-122.082932");
+        overridden.params.push(Param::new("VALUE", "URI"));
+        let info = overridden.type_info(Dialect::ICalendar);
+        assert_eq!(info.vtype, ValueType::Uri);
+        assert_eq!(info.multiplicity, Multiplicity::Single);
     }
 
     #[test]

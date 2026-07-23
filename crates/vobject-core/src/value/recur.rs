@@ -54,6 +54,11 @@ pub struct WeekdayNum {
 
 impl WeekdayNum {
     pub fn parse(s: &str) -> Result<WeekdayNum, ValueError> {
+        // Valid weekdaynum tokens are pure ASCII; rejecting everything else
+        // up front keeps the byte-offset split below on char boundaries.
+        if !s.is_ascii() {
+            return Err(ValueError::new(format!("invalid BYDAY {s:?}")));
+        }
         let split = s.len().saturating_sub(2);
         let (num, day) = s.split_at(split);
         let weekday = Weekday::parse(day)?;
@@ -456,6 +461,21 @@ mod tests {
             "FREQ=DAILY;COUNT=1;UNTIL=20200101", // both terminators
             "FREQ=DAILY;FREQ=WEEKLY",            // duplicate FREQ
             "FREQ=DAILY;NOEQUALS",
+        ] {
+            assert!(Recur::parse(bad).is_err(), "{bad:?} should fail");
+        }
+    }
+
+    #[test]
+    fn byday_multibyte_rejected_without_panic() {
+        // WeekdayNum::parse used to split at a byte offset, panicking on
+        // multibyte input instead of rejecting it.
+        for bad in [
+            "FREQ=WEEKLY;BYDAY=€",
+            "FREQ=WEEKLY;BYDAY=1€",
+            "FREQ=WEEKLY;BYDAY=€U",
+            "FREQ=WEEKLY;BYDAY=MO,€",
+            "FREQ=WEEKLY;BYDAY=-1€",
         ] {
             assert!(Recur::parse(bad).is_err(), "{bad:?} should fail");
         }

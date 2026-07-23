@@ -292,6 +292,11 @@ fn value_to_json_slots(prop: &Property, info: TypeInfo, dialect: Dialect) -> Vec
         // Per-type degradation for unparseable values, matching ical.js.
         Err(_) => match info.vtype {
             ValueType::Boolean => vec![json!(false)],
+            // A structured float (GEO) degrades in its structured shape so
+            // the reader's raw text round-trips to the same slots.
+            ValueType::Float if matches!(info.multiplicity, Multiplicity::Structured { .. }) => {
+                vec![Json::Array(vec![number(0.0)])]
+            }
             ValueType::Float => vec![number(0.0)],
             ValueType::Integer => vec![json!(0)],
             _ => vec![json!(prop.value.clone())],
@@ -657,9 +662,8 @@ fn raw_from_slots(
                 .collect::<Vec<_>>()
                 .join(";"),
             n @ Json::Number(_) => {
-                // A bare number where the registry expects lat;lon means the
-                // writer saw an explicit VALUE=FLOAT (single multiplicity);
-                // record it so re-writing takes the same path.
+                // A bare number where the registry expects lat;lon (foreign
+                // jCal); record the explicit type so the intent survives.
                 *force_value_param = true;
                 float_slot_to_string(n)
             }

@@ -49,10 +49,12 @@
 //!    legitimate empty value; the generator only keeps empty values in
 //!    first or last position, where a single separator survives their
 //!    parser.
-//! 6. No property value starting with ':': the `ical` crate strips
-//!    leading colons from values (observed: `A::` parses to value None,
-//!    `A:::x` to `x`, while interior/trailing colons survive), so values
-//!    are generated without a leading ':'.
+//! 6. No property value beginning with ':': after splitting off the name
+//!    and parameters, the `ical` crate's parser advances with
+//!    `trim_start_matches(':')`, which eats every leading colon of the
+//!    value (`A::` parses as an empty value instead of ":"). A leading
+//!    colon is a perfectly legal value octet, so values are generated
+//!    without one.
 
 use hegel::generators;
 use vobject_core::escape::{caret_encode, escape_text};
@@ -85,9 +87,9 @@ fn draw_text(tc: &hegel::TestCase) -> String {
     while s.ends_with(|c: char| c.is_whitespace() && c != '\n') {
         s.pop();
     }
-    let trimmed = s.trim_start_matches(':');
-    if trimmed.len() != s.len() {
-        s = trimmed.to_string();
+    // Deviation 6: their parser eats every leading ':' of a value.
+    while s.starts_with(':') {
+        s.remove(0);
     }
     s
 }

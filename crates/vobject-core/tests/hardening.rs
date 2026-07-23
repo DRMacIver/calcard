@@ -69,6 +69,56 @@ fn hourly_huge_interval_terminates() {
 }
 
 #[test]
+fn duplicated_by_time_lists_are_deduplicated() {
+    // The BYHOUR x BYMINUTE x BYSECOND time set used to be built as a full
+    // cross product without deduplication, so heavily duplicated lists cost
+    // O(n^3) time and memory even with a tiny COUNT.
+    let n = 1000;
+    let nines: String = vec!["9"; n].join(",");
+    let zeros: String = vec!["0"; n].join(",");
+    let rule = format!("FREQ=DAILY;COUNT=2;BYHOUR={nines};BYMINUTE={zeros};BYSECOND={zeros}");
+    let started = std::time::Instant::now();
+    let out = expand_all(&rule, "19970902T090000", 10);
+    assert_eq!(
+        out,
+        expand_all(
+            "FREQ=DAILY;COUNT=2;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+            "19970902T090000",
+            10
+        )
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "duplicated BY-time lists must not blow up the time-set cross product"
+    );
+}
+
+#[test]
+fn rscale_duplicated_by_time_lists_are_deduplicated() {
+    // Same as above for the RSCALE expansion path's mirror of the time set.
+    let n = 1000;
+    let nines: String = vec!["9"; n].join(",");
+    let zeros: String = vec!["0"; n].join(",");
+    let rule = format!(
+        "RSCALE=GREGORIAN;SKIP=FORWARD;FREQ=MONTHLY;COUNT=2;BYHOUR={nines};BYMINUTE={zeros};BYSECOND={zeros}"
+    );
+    let started = std::time::Instant::now();
+    let out = expand_all(&rule, "19970902T090000", 10);
+    assert_eq!(
+        out,
+        expand_all(
+            "RSCALE=GREGORIAN;SKIP=FORWARD;FREQ=MONTHLY;COUNT=2;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+            "19970902T090000",
+            10
+        )
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "duplicated BY-time lists must not blow up the time-set cross product"
+    );
+}
+
+#[test]
 fn yearly_near_year_range_end_terminates() {
     // Stepping past year 9999 must end the expansion, not panic.
     let out = expand_all("FREQ=YEARLY;COUNT=5", "99980601T120000", 10);
