@@ -49,6 +49,11 @@
 //!    legitimate empty value; the generator only keeps empty values in
 //!    first or last position, where a single separator survives their
 //!    parser.
+//! 6. No value starting with ':': the `ical` crate splits off the value
+//!    with `trim_start_matches(':')`, which eats the whole leading colon
+//!    run, so `A:::x` (value "::x") parses as "x" and `A::` (value ":")
+//!    as `None`. A leading ':' in a TEXT value is legal RFC 5545/6350
+//!    wire, so the generator simply never produces one.
 
 use hegel::generators;
 use vobject_core::escape::{caret_encode, escape_text};
@@ -86,7 +91,7 @@ fn draw_text(tc: &hegel::TestCase) -> String {
 /// A raw property value: either escaped TEXT (exercising `\,` `\;` `\n`
 /// `\\` and Unicode) or a simple token like a date-time or version number.
 fn draw_value(tc: &hegel::TestCase) -> String {
-    if tc.draw(generators::booleans()) {
+    let value = if tc.draw(generators::booleans()) {
         escape_text(&draw_text(tc))
     } else {
         tc.draw(generators::sampled_from(vec![
@@ -99,7 +104,9 @@ fn draw_value(tc: &hegel::TestCase) -> String {
             "",
         ]))
         .to_string()
-    }
+    };
+    // No leading ':' (deviation 6).
+    value.trim_start_matches(':').to_string()
 }
 
 /// A decoded parameter value: no CR (unrepresentable through RFC 6868),
@@ -214,7 +221,9 @@ fn write_for_ical_crate(tc: &hegel::TestCase, components: &[Component]) -> Strin
 // Comparison helpers
 
 /// What the ical crate should report for one of our properties.
-fn expected_property(prop: &Property) -> (String, Option<Vec<(String, Vec<String>)>>, Option<String>) {
+fn expected_property(
+    prop: &Property,
+) -> (String, Option<Vec<(String, Vec<String>)>>, Option<String>) {
     let name = match &prop.group {
         Some(g) => format!("{g}.{}", prop.name),
         None => prop.name.clone(),
@@ -346,7 +355,11 @@ fn ical_crate_parses_our_vcard_output(tc: hegel::TestCase) {
     let wire = write_for_ical_crate(&tc, &cards);
 
     let parsed: Vec<_> = ical::VcardParser::new(wire.as_bytes()).collect();
-    assert_eq!(parsed.len(), cards.len(), "card count diverged\nwire:\n{wire}");
+    assert_eq!(
+        parsed.len(),
+        cards.len(),
+        "card count diverged\nwire:\n{wire}"
+    );
 
     for (ours, theirs) in cards.iter().zip(parsed) {
         let theirs = theirs.unwrap_or_else(|e| panic!("ical crate failed: {e}\nwire:\n{wire}"));

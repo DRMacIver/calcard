@@ -16,8 +16,8 @@ use serde_json::{json, Map, Value as Json};
 use crate::escape::escape_text;
 use crate::model::{Component, Param, Property};
 use crate::value::{
-    self, default_type_info, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time,
-    TypeInfo, Until, Value, ValueType,
+    self, default_type_info, Date, DateOrDateTime, DateTime, Dialect, Multiplicity, Time, TypeInfo,
+    Until, Value, ValueType,
 };
 
 fn json_date(d: &Date) -> String {
@@ -35,11 +35,7 @@ fn json_time(t: &Time) -> String {
 }
 
 fn json_datetime(dt: &DateTime) -> String {
-    format!(
-        "{}T{}",
-        json_date(&dt.date),
-        json_time(&dt.time)
-    )
+    format!("{}T{}", json_date(&dt.date), json_time(&dt.time))
 }
 
 fn json_date_or_datetime(d: &DateOrDateTime) -> String {
@@ -229,10 +225,7 @@ fn value_to_json_slots(prop: &Property, info: TypeInfo, dialect: Dialect) -> Vec
     // vCard 4 partial date/time forms are string transformations, not full
     // semantic parses. vCard 3 has no such types: values whose VALUE param
     // claims them pass through raw.
-    if matches!(
-        info.vtype,
-        ValueType::DateAndOrTime | ValueType::Timestamp
-    ) {
+    if matches!(info.vtype, ValueType::DateAndOrTime | ValueType::Timestamp) {
         return if dialect == Dialect::VCard4 {
             vec![json!(vcard_datetime_to_jcard(prop.value.trim()))]
         } else {
@@ -246,7 +239,10 @@ fn value_to_json_slots(prop: &Property, info: TypeInfo, dialect: Dialect) -> Vec
         Ok(Value::Structured(components)) => {
             // One slot. Components collapse: a singleton component is a
             // plain string, and a single-component value collapses to that
-            // component directly (GENDER:M → "M").
+            // component directly (GENDER:M → "M") — but only when the lone
+            // component is a scalar: a single component holding a comma
+            // list (N:Philip,Paul) keeps its wrapping array so it stays
+            // distinguishable from a two-component value.
             let rendered: Vec<Json> = components
                 .into_iter()
                 .map(|c| {
@@ -257,7 +253,7 @@ fn value_to_json_slots(prop: &Property, info: TypeInfo, dialect: Dialect) -> Vec
                     }
                 })
                 .collect();
-            if rendered.len() == 1 {
+            if rendered.len() == 1 && !matches!(rendered[0], Json::Array(_)) {
                 vec![rendered.into_iter().next().unwrap()]
             } else {
                 vec![Json::Array(rendered)]
@@ -343,6 +339,19 @@ fn property_to_jcal(prop: &Property, dialect: Dialect) -> Json {
     }
 
     let mut info = prop.type_info(dialect);
+    // jCal/jCard allow arbitrary value type names (RFC 7265 §3.5, RFC 7095
+    // §3.4): an unrecognized VALUE parameter travels as the type string,
+    // with unknown (raw) semantics, rather than being silently dropped.
+    let mut type_label: Option<String> = None;
+    if let Some(vp) = prop.param_value("VALUE") {
+        if !vp.is_empty() && ValueType::from_name(vp).is_none() {
+            info = TypeInfo {
+                vtype: ValueType::Unknown,
+                multiplicity: Multiplicity::Single,
+            };
+            type_label = Some(vp.to_ascii_lowercase());
+        }
+    }
     // Date/date-time shape inference: when no explicit VALUE parameter is
     // present, the value's own shape decides between DATE and DATE-TIME.
     if prop.param_value("VALUE").is_none() {
@@ -357,7 +366,7 @@ fn property_to_jcal(prop: &Property, dialect: Dialect) -> Json {
     let mut entry = vec![
         json!(name),
         Json::Object(params),
-        json!(info.vtype.jcal_name()),
+        json!(type_label.as_deref().unwrap_or(info.vtype.jcal_name())),
     ];
     entry.extend(value_to_json_slots(prop, info, dialect));
     Json::Array(entry)
@@ -436,8 +445,8 @@ impl std::error::Error for JcalError {}
 /// degradations (unparseable values carried as raw strings) are read back
 /// verbatim.
 pub fn from_jcal(json: &str) -> Result<Vec<Component>, JcalError> {
-    let value: Json = serde_json::from_str(json)
-        .map_err(|e| JcalError::new(format!("invalid JSON: {e}")))?;
+    let value: Json =
+        serde_json::from_str(json).map_err(|e| JcalError::new(format!("invalid JSON: {e}")))?;
     from_jcal_value(&value)
 }
 
@@ -485,11 +494,7 @@ fn document_component(v: &Json) -> Result<Component, JcalError> {
     component_from_json(v, dialect, 0)
 }
 
-fn component_from_json(
-    v: &Json,
-    dialect: Dialect,
-    depth: usize,
-) -> Result<Component, JcalError> {
+fn component_from_json(v: &Json, dialect: Dialect, depth: usize) -> Result<Component, JcalError> {
     if depth > MAX_DEPTH {
         return Err(JcalError::new("jCal components nested too deeply"));
     }
@@ -588,6 +593,13 @@ fn property_from_json(v: &Json, dialect: Dialect) -> Result<Property, JcalError>
         }
         let values = match pvalue {
             Json::Array(items) => items.iter().map(json_scalar_to_string).collect(),
+            // "" is how the writer spells a bare (valueless) param
+            // (TEL;HOME). A genuinely empty single value (TEL;HOME=:)
+            // writes the same "", so the two wire forms are ambiguous in
+            // jCal; we read the one whose wire serialization round-trips
+            // through this library ("HOME" re-parses as bare, whereas
+            // reading [""] would serialize as "HOME=:").
+            Json::String(s) if s.is_empty() => Vec::new(),
             other => vec![json_scalar_to_string(other)],
         };
         params.push(Param {
@@ -617,6 +629,11 @@ fn property_from_json(v: &Json, dialect: Dialect) -> Result<Property, JcalError>
         if declared != default.vtype || declared != inferred || force_value_param {
             params.push(Param::new("VALUE", type_name.to_ascii_uppercase()));
         }
+    } else if !type_name.is_empty() {
+        // An unrecognized type name is the writer's spelling of an
+        // unrecognized VALUE parameter; record it so re-writing reproduces
+        // the same type string.
+        params.push(Param::new("VALUE", type_name.to_ascii_uppercase()));
     }
 
     Ok(Property {
@@ -645,6 +662,11 @@ fn raw_from_slots(
     let structured = matches!(default.multiplicity, Multiplicity::Structured { .. });
     match effective {
         Text | PhoneNumber | Vcard if structured => structured_text_raw(&slots[0]),
+        // iCalendar URIs (RFC 5545 §3.3.13) have no backslash escaping;
+        // vCard values, URIs included, escape commas (RFC 6350 §3.4).
+        Uri | CalAddress if dialect == Dialect::ICalendar => {
+            join_slots(slots, json_scalar_to_string)
+        }
         Text | PhoneNumber | Vcard | Uri | CalAddress => {
             join_slots(slots, |s| escape_text(&json_scalar_to_string(s)))
         }
@@ -653,9 +675,7 @@ fn raw_from_slots(
             other => json_scalar_to_string(other),
         }),
         UtcOffset => join_slots(slots, |s| match s {
-            Json::String(text) => {
-                verified_wire(text, text.replace(':', ""), effective, dialect)
-            }
+            Json::String(text) => verified_wire(text, text.replace(':', ""), effective, dialect),
             other => json_scalar_to_string(other),
         }),
         Boolean => match &slots[0] {
@@ -702,11 +722,7 @@ fn structured_text_raw(slot: &Json) -> String {
         }
     }
     match slot {
-        Json::Array(entries) => entries
-            .iter()
-            .map(component)
-            .collect::<Vec<_>>()
-            .join(";"),
+        Json::Array(entries) => entries.iter().map(component).collect::<Vec<_>>().join(";"),
         other => component(other),
     }
 }
@@ -791,14 +807,14 @@ fn compact_date(d: &str) -> String {
 /// compacted, but only when the writer would render the compacted value
 /// back to exactly this slot — unparseable wire values travel through
 /// jCal as raw strings and must return verbatim.
-fn date_slot_to_wire(text: &str, vtype: ValueType, dialect: Dialect) -> String {
+pub(crate) fn date_slot_to_wire(text: &str, vtype: ValueType, dialect: Dialect) -> String {
     if dialect == Dialect::VCard3 {
         return text.to_string();
     }
     let looks_like_datetime = !text.is_empty()
-        && text.chars().all(|c| {
-            c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-')
-        });
+        && text
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'T' | 't' | 'Z' | 'z' | ':' | '+' | '-'));
     if !looks_like_datetime {
         return text.to_string();
     }
@@ -821,7 +837,12 @@ fn date_slot_to_wire(text: &str, vtype: ValueType, dialect: Dialect) -> String {
 /// Accept `candidate` as the wire form of a slot only if the writer would
 /// render it back to exactly `text`; otherwise keep the slot text verbatim
 /// (the raw-fallback path, which the writer reproduces as-is).
-fn verified_wire(text: &str, candidate: String, vtype: ValueType, dialect: Dialect) -> String {
+pub(crate) fn verified_wire(
+    text: &str,
+    candidate: String,
+    vtype: ValueType,
+    dialect: Dialect,
+) -> String {
     if candidate == text {
         return candidate;
     }
@@ -861,7 +882,11 @@ mod tests {
             serde_json::json!([
                 "vcalendar",
                 [["version", {}, "text", "2.0"]],
-                [["vevent", [["dtstart", {}, "date-time", "2026-07-22T16:00:00Z"]], []]]
+                [[
+                    "vevent",
+                    [["dtstart", {}, "date-time", "2026-07-22T16:00:00Z"]],
+                    []
+                ]]
             ])
         );
     }
@@ -870,7 +895,10 @@ mod tests {
     fn value_param_consumed_into_type() {
         let comp = first("BEGIN:VCALENDAR\r\nDTSTART;VALUE=DATE:20260722\r\nEND:VCALENDAR\r\n");
         let j = to_jcal(&comp);
-        assert_eq!(j[1][0], serde_json::json!(["dtstart", {}, "date", "2026-07-22"]));
+        assert_eq!(
+            j[1][0],
+            serde_json::json!(["dtstart", {}, "date", "2026-07-22"])
+        );
     }
 
     #[test]

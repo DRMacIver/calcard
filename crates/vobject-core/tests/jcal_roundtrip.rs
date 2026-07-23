@@ -53,7 +53,10 @@ fn icalendar_group_prefix_round_trips() {
     let j = to_jcal(&comp);
     assert_eq!(j[1][0][0], json!("item1.x-thing"));
     let back = from_jcal(&j.to_string()).unwrap();
-    assert_eq!(back[0].properties().next().unwrap().group.as_deref(), Some("item1"));
+    assert_eq!(
+        back[0].properties().next().unwrap().group.as_deref(),
+        Some("item1")
+    );
     assert_eq!(back[0].properties().next().unwrap().name, "X-THING");
 }
 
@@ -99,13 +102,81 @@ fn vcard3_dialect_detected_from_version() {
     assert_eq!(back, vec![comp]);
 }
 
+#[test]
+fn single_component_comma_list_structured_value_round_trips() {
+    // N with ONE component holding a comma list must stay distinguishable
+    // from a value with two components (finding: `N:Philip,Paul` used to
+    // collapse to ["Philip","Paul"], which reads back as `N:Philip;Paul`).
+    let comp = first("BEGIN:VCARD\r\nVERSION:4.0\r\nN:Philip,Paul\r\nEND:VCARD\r\n");
+    let j = to_jcal(&comp);
+    assert_eq!(j[1][1], json!(["n", {}, "text", [["Philip", "Paul"]]]));
+    let back = from_jcal(&j.to_string()).unwrap();
+    assert_eq!(back, vec![comp]);
+
+    // The scalar collapse for a lone singleton component stays (GENDER:M).
+    let comp = first("BEGIN:VCARD\r\nVERSION:4.0\r\nGENDER:M\r\nEND:VCARD\r\n");
+    let j = to_jcal(&comp);
+    assert_eq!(j[1][1], json!(["gender", {}, "text", "M"]));
+    let back = from_jcal(&j.to_string()).unwrap();
+    assert_eq!(back, vec![comp]);
+}
+
+#[test]
+fn icalendar_uri_with_comma_round_trips_unescaped() {
+    // RFC 5545 §3.3.13: iCalendar URIs have no backslash escaping, so a
+    // comma must not come back as `\,`.
+    let comp = first(
+        "BEGIN:VCALENDAR\r\nURL:http://example.com/a,b\r\nATTENDEE:mailto:a@b,c\r\nEND:VCALENDAR\r\n",
+    );
+    let j = to_jcal(&comp);
+    let back = from_jcal(&j.to_string()).unwrap();
+    assert_eq!(back, vec![comp]);
+}
+
+#[test]
+fn vcard_uri_comma_stays_escaped() {
+    // RFC 6350 §3.4 requires escaping commas in vCard values; the corpus
+    // (icaljs vcard.vcf GEO) pins the unescaped jCard form.
+    let comp =
+        first("BEGIN:VCARD\r\nVERSION:4.0\r\nGEO:geo:37.386013\\,-122.082932\r\nEND:VCARD\r\n");
+    let j = to_jcal(&comp);
+    assert_eq!(j[1][1][3], json!("geo:37.386013,-122.082932"));
+    let back = from_jcal(&j.to_string()).unwrap();
+    assert_eq!(back, vec![comp]);
+}
+
+#[test]
+fn unrecognized_value_type_name_round_trips() {
+    // jCal allows arbitrary value type names; an unrecognized VALUE
+    // parameter travels as the type string instead of being dropped.
+    let comp = first("BEGIN:VCALENDAR\r\nX-PROP;VALUE=SOMEFUTURE:data\r\nEND:VCALENDAR\r\n");
+    let j = to_jcal(&comp);
+    assert_eq!(j[1][0], json!(["x-prop", {}, "somefuture", "data"]));
+    let back = from_jcal(&j.to_string()).unwrap();
+    assert_eq!(back, vec![comp]);
+}
+
+#[test]
+fn bare_vcard_param_round_trips() {
+    // A bare vCard 2.1-style param (TEL;HOME) is written as "home": "" and
+    // must read back as a bare param, not one with a single empty value
+    // (which would serialize as TEL;HOME=:).
+    let comp = first("BEGIN:VCARD\r\nVERSION:3.0\r\nTEL;HOME:+441234\r\nEND:VCARD\r\n");
+    let j = to_jcal(&comp);
+    let back = from_jcal(&j.to_string()).unwrap();
+    let tel = back[0].prop("TEL").unwrap();
+    assert_eq!(tel.params[0].values, Vec::<String>::new());
+    assert_eq!(back, vec![comp]);
+}
+
 // ---------------------------------------------------------------------------
 // Accepted document shapes
 
 #[test]
 fn jcard_two_element_form_is_accepted() {
-    let back = from_jcal(r#"["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Alice"]]]"#)
-        .unwrap();
+    let back =
+        from_jcal(r#"["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Alice"]]]"#)
+            .unwrap();
     assert_eq!(back.len(), 1);
     assert!(back[0].is("VCARD"));
     assert_eq!(back[0].prop("FN").unwrap().value, "Alice");
@@ -205,8 +276,7 @@ fn corpus() -> Vec<PathBuf> {
                 let name = path.file_name().unwrap().to_string_lossy().to_string();
                 let ext = path.extension().map(|e| e.to_string_lossy().to_string());
                 if matches!(ext.as_deref(), Some("ics") | Some("vcf"))
-                    || (path.parent().unwrap().file_name().unwrap() == "fuzz"
-                        && name != "LICENSE")
+                    || (path.parent().unwrap().file_name().unwrap() == "fuzz" && name != "LICENSE")
                 {
                     files.push(path);
                 }
@@ -230,9 +300,7 @@ fn corpus_round_trips_through_jcal() {
             // recursion limit; the value API supports the full 512 cap.
             let back = from_jcal(&j1.to_string())
                 .or_else(|_| from_jcal_value(&j1))
-                .unwrap_or_else(|e| {
-                    panic!("from_jcal failed on {}: {e}\n{j1}", path.display())
-                });
+                .unwrap_or_else(|e| panic!("from_jcal failed on {}: {e}\n{j1}", path.display()));
             assert_eq!(back.len(), 1, "{}", path.display());
             if back[0] == *comp {
                 model_equal += 1;
