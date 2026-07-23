@@ -205,7 +205,8 @@ fn model_survives_write_then_strict_parse(tc: hegel::TestCase) {
     let n_roots = tc.draw(generators::integers::<usize>().min_value(1).max_value(3));
     let components: Vec<Component> = (0..n_roots).map(|_| draw_component(&tc, 3)).collect();
 
-    let wire = write_document(&components, &WriteOptions::default());
+    let wire = write_document(&components, &WriteOptions::default())
+        .expect("parsed models are always writable");
     let parsed = parse(&wire, &ParseOptions::strict())
         .unwrap_or_else(|e| panic!("writer output failed strict parse: {e}\n{wire}"));
     assert_eq!(parsed.components, components, "wire form:\n{wire}");
@@ -233,6 +234,7 @@ fn parsed_model_survives_write_then_lenient_reparse(tc: hegel::TestCase) {
         all_properties(c).into_iter().any(|p| {
             p.value.contains('=')
                 && property_line(p)
+                    .expect("parsed properties are writable")
                     .split(':')
                     .next()
                     .unwrap_or("")
@@ -242,7 +244,8 @@ fn parsed_model_survives_write_then_lenient_reparse(tc: hegel::TestCase) {
     });
     tc.assume(!qp_hazard);
 
-    let wire = write_document(&first.components, &WriteOptions::default());
+    let wire = write_document(&first.components, &WriteOptions::default())
+        .expect("parsed models are always writable");
     let second = parse(&wire, &ParseOptions::lenient()).unwrap();
     assert_eq!(
         second.components, first.components,

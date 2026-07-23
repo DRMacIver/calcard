@@ -1,5 +1,6 @@
 //! Building component trees from content lines.
 
+use crate::contentline;
 use crate::contentline::parse_content_line;
 use crate::error::{ErrorKind, Location, ParseError, Repair, RepairKind};
 use crate::lines::unfold;
@@ -233,14 +234,17 @@ pub fn parse_bytes(input: &[u8], options: &ParseOptions) -> Result<Parsed, Parse
 /// The component name carried by a BEGIN/END line.
 ///
 /// Strictly well formed means: no parameters, no group, and a non-empty
-/// name with no surrounding whitespace. In lenient mode a group prefix
-/// (e.g. sabre tests' `home.begin:vcard`) or stray whitespace is normalized
-/// away with a recorded repair; in strict mode both are errors, keeping the
-/// zero-repairs ⟺ strictly-valid invariant honest.
+/// iana-token/x-name with no surrounding whitespace. In lenient mode a
+/// group prefix (e.g. sabre tests' `home.begin:vcard`) or stray whitespace
+/// is normalized away with a recorded repair, and a name outside the
+/// strict grammar (but free of structural/control characters) is kept
+/// with a repair, mirroring property-name handling; in strict mode all of
+/// these are errors, keeping the zero-repairs ⟺ strictly-valid invariant
+/// honest.
 fn delimiter_name(
     prop: &Property,
     loc: Location,
-    repairs: Option<&mut Vec<Repair>>,
+    mut repairs: Option<&mut Vec<Repair>>,
 ) -> Option<String> {
     if !prop.params.is_empty() {
         return None;
@@ -250,12 +254,21 @@ fn delimiter_name(
         return None;
     }
     if prop.group.is_some() || name != prop.value {
-        match repairs {
+        match repairs.as_deref_mut() {
             Some(repairs) => repairs.push(Repair {
                 location: loc,
                 kind: RepairKind::NormalizedDelimiter(name.to_string()),
             }),
             None => return None,
+        }
+    }
+    if !contentline::is_strict_name(name) {
+        match repairs {
+            Some(repairs) if contentline::is_lenient_name(name) => repairs.push(Repair {
+                location: loc,
+                kind: RepairKind::NonstandardName(name.to_string()),
+            }),
+            _ => return None,
         }
     }
     Some(name.to_string())
@@ -481,6 +494,56 @@ mod tests {
             .repairs
             .iter()
             .any(|r| matches!(r.kind, RepairKind::DroppedLine(_))));
+    }
+
+    #[test]
+    fn strict_rejects_invalid_component_names() {
+        // Component names must satisfy the same iana-token/x-name grammar
+        // as property names; these used to slip through with 0 repairs.
+        for input in [
+            "BEGIN:foo bar\r\nEND:foo bar\r\n",
+            "BEGIN:V=CARD\r\nEND:V=CARD\r\n",
+            "BEGIN:X_A\r\nEND:X_A\r\n",
+        ] {
+            assert_eq!(
+                strict(input).unwrap_err().kind,
+                ErrorKind::MalformedDelimiter,
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn lenient_repairs_nonstandard_component_name() {
+        // Names outside the strict grammar but harmless (no structural or
+        // control characters) are kept with a repair, mirroring property
+        // name handling.
+        for input in [
+            "BEGIN:foo bar\r\nEND:foo bar\r\n",
+            "BEGIN:X_A\r\nEND:X_A\r\n",
+        ] {
+            let parsed = lenient(input);
+            assert_eq!(parsed.components.len(), 1, "{input:?}");
+            assert!(
+                parsed
+                    .repairs
+                    .iter()
+                    .any(|r| matches!(r.kind, RepairKind::NonstandardName(_))),
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn lenient_drops_structural_component_name() {
+        // A delimiter whose name could not be re-serialized unambiguously
+        // is dropped like any other malformed delimiter.
+        let parsed = lenient("BEGIN:V=CARD\r\nFN:x\r\nEND:V=CARD\r\n");
+        assert_eq!(parsed.components.len(), 0);
+        assert!(parsed.repairs.iter().any(|r| matches!(
+            r.kind,
+            RepairKind::DroppedLine(ErrorKind::MalformedDelimiter)
+        )));
     }
 
     #[test]

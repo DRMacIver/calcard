@@ -18,30 +18,35 @@ pub const FOLD_WIDTH: usize = 75;
 /// characters may force a line to exceed a tiny width since characters are
 /// never split.
 ///
-/// A folded physical line never ends with `=`: on a property carrying
-/// vCard 2.1 QUOTED-PRINTABLE data, `=` before a line break is a QP soft
-/// break, and a lenient reparse of such a fold would join it as one —
-/// deleting the `=` and corrupting the value. Shifting the fold point one
-/// character left costs an octet of that line and keeps round trips exact.
+/// A folded physical line never ends with `=` when any other fold point
+/// exists: on a property carrying vCard 2.1 QUOTED-PRINTABLE data, `=`
+/// before a line break is a QP soft break, and a lenient reparse of such
+/// a fold would join it as one — deleting the `=` and corrupting the
+/// value. Shifting the fold point left costs octets of that line and
+/// keeps round trips exact. The one exception is a chunk consisting
+/// entirely of `=` (never valid QP data anyway): there no safe fold point
+/// exists, and the width contract wins.
 pub fn fold_into(out: &mut String, line: &str, width: usize, line_ending: &str) {
     let width = width.max(2);
     let mut budget = width;
     let mut current = String::new();
     for c in line.chars() {
         let len = c.len_utf8();
-        if current.len() + len > budget && !current.is_empty() {
-            let mut carried = 0usize;
-            while current.len() > 1 && current.ends_with('=') {
-                current.pop();
-                carried += 1;
+        while current.len() + len > budget && !current.is_empty() {
+            // Largest split point whose emitted prefix does not end in
+            // '=' ('=' is single-byte, so these are char boundaries).
+            let mut keep = current.len();
+            while keep > 1 && current.as_bytes()[keep - 1] == b'=' {
+                keep -= 1;
             }
+            if current.as_bytes()[keep - 1] == b'=' {
+                keep = current.len();
+            }
+            let carry = current.split_off(keep);
             out.push_str(&current);
             out.push_str(line_ending);
             out.push(' ');
-            current.clear();
-            for _ in 0..carried {
-                current.push('=');
-            }
+            current = carry;
             budget = width - 1; // the fold marker space consumed one octet
         }
         current.push(c);
@@ -123,6 +128,38 @@ mod tests {
             let unfolded = crate::lines::unfold(&folded, None).unwrap();
             assert_eq!(unfolded.len(), 1, "n={n}");
             assert_eq!(unfolded[0].text, line, "n={n}");
+        }
+    }
+
+    #[test]
+    fn equals_runs_respect_width_and_round_trip() {
+        // Runs of '=' used to defeat both guarantees: the pop loop got
+        // stuck emitting degenerate " =" lines, and re-inserted carries
+        // could push a line past the width.
+        let cases = [
+            format!("NOTE:{}", "=".repeat(200)),
+            format!("X{}", "=".repeat(100)),
+            format!("NOTE:{}☃abc", "=".repeat(150)),
+        ];
+        for line in &cases {
+            let folded = fold(line);
+            for physical in folded.split("\r\n") {
+                assert!(physical.len() <= 75, "{}: {physical:?}", physical.len());
+            }
+            let unfolded = crate::lines::unfold(&folded, None).unwrap();
+            assert_eq!(unfolded.len(), 1);
+            assert_eq!(unfolded[0].text, *line);
+        }
+    }
+
+    #[test]
+    fn fold_avoids_trailing_equals_when_possible() {
+        // Whenever a chunk has any non-'=' fold point, no physical line
+        // ends with '='. (A logical line itself ending in '=' necessarily
+        // ends its final physical line with '=', so end with 'x' here.)
+        let line = format!("NOTE:{}x", "a=".repeat(100));
+        for physical in fold(&line).split("\r\n").filter(|l| !l.is_empty()) {
+            assert!(!physical.ends_with('='), "{physical:?}");
         }
     }
 

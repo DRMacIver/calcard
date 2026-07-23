@@ -475,7 +475,8 @@ fn serialize(
         line_ending: line_ending.to_string(),
         fold_width,
     };
-    Ok(core::write_document(&core_components, &options))
+    core::write_document(&core_components, &options)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
 /// Unescape a TEXT value (leniently: invalid escapes are kept verbatim).

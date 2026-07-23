@@ -17,13 +17,13 @@ use crate::escape::caret_decode;
 use crate::model::{Param, Property};
 
 /// Is this a valid strict-grammar name (property, group, or parameter)?
-fn is_strict_name(s: &str) -> bool {
+pub(crate) fn is_strict_name(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 /// Lenient names: anything non-empty without structural or control
 /// characters. Underscores in particular occur in the wild (Lotus Notes).
-fn is_lenient_name(s: &str) -> bool {
+pub(crate) fn is_lenient_name(s: &str) -> bool {
     !s.is_empty()
         && s.chars()
             .all(|c| !c.is_control() && !matches!(c, ';' | ':' | '=' | ',' | '"'))
@@ -212,7 +212,8 @@ impl<'a, 'r> LineParser<'a, 'r> {
                         }
                         self.repair(RepairKind::KeptStrayQuote);
                         let extra = self.take_until(&[',', ';', ':']);
-                        out.push_str(&caret_decode(extra));
+                        let extra = self.check_param_text(extra)?;
+                        out.push_str(&extra);
                     }
                     Ok(out)
                 }
@@ -222,7 +223,7 @@ impl<'a, 'r> LineParser<'a, 'r> {
                     }
                     // Reparse from the opening quote treating '"' as an
                     // ordinary character.
-                    self.repair(RepairKind::ClosedUnterminatedQuote);
+                    self.repair(RepairKind::KeptUnterminatedQuote);
                     let raw = self.take_until(&[',', ';', ':']);
                     self.check_param_text(raw)
                 }
@@ -455,7 +456,7 @@ mod tests {
         assert_eq!(p.value, "v");
         assert!(repairs
             .iter()
-            .any(|r| r.kind == RepairKind::ClosedUnterminatedQuote));
+            .any(|r| r.kind == RepairKind::KeptUnterminatedQuote));
     }
 
     #[test]
@@ -478,6 +479,18 @@ mod tests {
         let (p, _) = lenient("X;A=\"quoted\"extra:v");
         assert_eq!(p.param_value("A"), Some("quotedextra"));
         assert_eq!(p.value, "v");
+    }
+
+    #[test]
+    fn text_after_closing_quote_is_control_checked() {
+        // The recovered tail goes through the same control-character
+        // diagnostics as every other value path.
+        let (p, repairs) = lenient("X;A=\"q\"ex\u{7}tra:v");
+        assert_eq!(p.param_value("A"), Some("qex\u{7}tra"));
+        assert!(repairs.iter().any(|r| r.kind == RepairKind::KeptStrayQuote));
+        assert!(repairs
+            .iter()
+            .any(|r| matches!(r.kind, RepairKind::KeptControlCharacter(_))));
     }
 
     #[test]

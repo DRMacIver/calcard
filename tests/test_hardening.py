@@ -62,6 +62,15 @@ def test_cyclic_component_equality_raises_instead_of_aborting():
         a == a
 
 
+def test_serializing_injected_line_break_raises():
+    # A programmatic value containing CRLF must not become an injected
+    # content line on the wire.
+    comp = Component("VCARD")
+    comp.children = [calcard.Property("SUMMARY", "a\r\nX-EVIL:b")]
+    with pytest.raises(ValueError, match="line break"):
+        calcard.serialize([comp])
+
+
 def test_max_depth_above_ceiling_is_rejected():
     # Depths beyond the default would let a parse build trees that the
     # recursive conversion, comparison, and serialization paths cannot

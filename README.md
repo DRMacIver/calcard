@@ -13,7 +13,10 @@ RFC 6868 parameter encoding) — as a standalone Rust crate
   breaks, unterminated components, stray quotes, control characters,
   pathological nesting — and reports every recovery as a `Repair`. Strict
   mode enforces the RFC grammars exactly. Zero repairs in lenient mode is
-  the same thing as strict validity.
+  the same thing as strict validity (with one inherent ambiguity: a value
+  that declares `ENCODING=QUOTED-PRINTABLE` and genuinely ends in `=` is
+  indistinguishable from a vCard 2.1 soft line break, and lenient parsing
+  resolves it as the far more common soft break, with a `Repair`).
 - **Lossless round-trips.** The document model preserves property order,
   unknown properties and parameters, vCard groups, and the interleaving of
   properties with subcomponents.
@@ -47,7 +50,7 @@ let parsed = parse(input, &ParseOptions::lenient())?;
 for repair in &parsed.repairs {
     eprintln!("repaired: {repair}");
 }
-let out = write_document(&parsed.components, &Default::default());
+let out = write_document(&parsed.components, &Default::default())?;
 ```
 
 ## Repository layout

@@ -315,7 +315,8 @@ fn delimiter_repairs_round_trip_strict() {
         .iter()
         .any(|r| matches!(r.kind, RepairKind::NormalizedDelimiter(_))));
     // Re-serializing the repaired model must be strictly valid.
-    let wire = vobject_core::write_document(&parsed.components, &Default::default());
+    let wire = vobject_core::write_document(&parsed.components, &Default::default())
+        .expect("parsed models are always writable");
     assert!(parse(&wire, &ParseOptions::strict()).is_ok());
 }
 
@@ -500,7 +501,8 @@ fn folding_never_splits_after_equals() {
         let mut comp = Component::new("VCARD");
         comp.push_property(prop);
 
-        let wire = write_document(&[comp.clone()], &Default::default());
+        let wire = write_document(&[comp.clone()], &Default::default())
+            .expect("parsed models are always writable");
         for physical in wire.split("\r\n") {
             assert!(
                 !physical.ends_with('='),

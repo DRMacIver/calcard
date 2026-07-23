@@ -49,6 +49,10 @@
 //!    legitimate empty value; the generator only keeps empty values in
 //!    first or last position, where a single separator survives their
 //!    parser.
+//! 6. No property value starting with ':': the `ical` crate strips
+//!    leading colons from values (observed: `A::` parses to value None,
+//!    `A:::x` to `x`, while interior/trailing colons survive), so values
+//!    are generated without a leading ':'.
 
 use hegel::generators;
 use vobject_core::escape::{caret_encode, escape_text};
@@ -69,8 +73,9 @@ fn draw_name(tc: &hegel::TestCase) -> String {
 }
 
 /// Decoded text for a property value. Excludes CR and control characters
-/// other than '\n' (which TEXT escaping carries as "\n"), and trailing
-/// whitespace other than '\n' (deviation 1).
+/// other than '\n' (which TEXT escaping carries as "\n"), trailing
+/// whitespace other than '\n' (deviation 1), and a leading ':'
+/// (deviation 6).
 fn draw_text(tc: &hegel::TestCase) -> String {
     let mut s: String = tc
         .draw(generators::text().max_size(80))
@@ -79,6 +84,10 @@ fn draw_text(tc: &hegel::TestCase) -> String {
         .collect();
     while s.ends_with(|c: char| c.is_whitespace() && c != '\n') {
         s.pop();
+    }
+    let trimmed = s.trim_start_matches(':');
+    if trimmed.len() != s.len() {
+        s = trimmed.to_string();
     }
     s
 }
@@ -202,7 +211,7 @@ fn write_for_ical_crate(tc: &hegel::TestCase, components: &[Component]) -> Strin
             ..WriteOptions::default()
         }
     };
-    let wire = write_document(components, &options);
+    let wire = write_document(components, &options).expect("parsed models are always writable");
     let hazard = wire
         .split("\r\n")
         .any(|line| line.ends_with(|c: char| c.is_whitespace()));

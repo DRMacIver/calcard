@@ -160,8 +160,9 @@ pub enum RepairKind {
     /// A property, group, or parameter name outside the strict grammar
     /// (e.g. containing '_' or non-ASCII) was kept as-is.
     NonstandardName(String),
-    /// An unterminated quoted parameter value was closed at end of line.
-    ClosedUnterminatedQuote,
+    /// The opening quote of an unterminated quoted parameter value was
+    /// kept as a literal character and the value reparsed from it.
+    KeptUnterminatedQuote,
     /// A double quote appeared inside an unquoted parameter value and was kept.
     KeptStrayQuote,
     /// A BEGIN/END line outside the strict grammar (surrounding whitespace in
@@ -203,11 +204,8 @@ impl fmt::Display for RepairKind {
             RepairKind::NonstandardName(n) => {
                 write!(f, "kept nonstandard name {n:?}")
             }
-            RepairKind::ClosedUnterminatedQuote => {
-                write!(
-                    f,
-                    "closed unterminated quoted parameter value at end of line"
-                )
+            RepairKind::KeptUnterminatedQuote => {
+                write!(f, "kept unterminated quote as a literal character")
             }
             RepairKind::KeptStrayQuote => {
                 write!(f, "kept stray double quote in parameter value")
@@ -284,7 +282,7 @@ mod tests {
             RepairKind::LeadingContinuationTreatedAsLine,
             RepairKind::BareParameter("HOME".into()),
             RepairKind::NonstandardName("X_ABC".into()),
-            RepairKind::ClosedUnterminatedQuote,
+            RepairKind::KeptUnterminatedQuote,
             RepairKind::KeptStrayQuote,
             RepairKind::NormalizedDelimiter("VCALENDAR".into()),
         ];

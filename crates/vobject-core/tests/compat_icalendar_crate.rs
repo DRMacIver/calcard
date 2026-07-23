@@ -412,7 +412,8 @@ fn our_parser_reads_icalendar_crate_output(tc: hegel::TestCase) {
 
     // Round-trip: our serialization of the parsed model, reparsed strictly,
     // reproduces the model exactly.
-    let ours = write_document(&parsed.components, &WriteOptions::default());
+    let ours = write_document(&parsed.components, &WriteOptions::default())
+        .expect("parsed models are always writable");
     let reparsed = parse(&ours, &ParseOptions::strict())
         .unwrap_or_else(|e| panic!("our rewrite failed strict parse: {e}\n{ours}"));
     assert_eq!(reparsed.components, parsed.components);

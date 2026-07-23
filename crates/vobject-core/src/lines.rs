@@ -127,7 +127,19 @@ pub fn unfold(
             // append this physical line verbatim.
             current.text.pop();
             current.text.push_str(phys.text);
-            qp_continuation = current.text.ends_with('=') && looks_quoted_printable(&current.text);
+            qp_continuation = current.text.ends_with('=')
+                && looks_quoted_printable(&current.text)
+                && idx < physical.len();
+            if qp_continuation {
+                // Each chained join is its own modification and gets its
+                // own repair.
+                if let Some(r) = repairs.as_deref_mut() {
+                    r.push(Repair {
+                        location: loc,
+                        kind: RepairKind::JoinedQuotedPrintable,
+                    });
+                }
+            }
             continue;
         }
 
@@ -316,6 +328,19 @@ mod tests {
         assert!(repairs
             .iter()
             .any(|r| r.kind == RepairKind::JoinedQuotedPrintable));
+    }
+
+    #[test]
+    fn chained_qp_joins_record_one_repair_each() {
+        // Two soft breaks, two joins: each must surface as a repair so
+        // diagnostics account for every modification.
+        let input = "NOTE;ENCODING=QUOTED-PRINTABLE:a=\r\nb=\r\nc\r\n";
+        let (_, repairs) = lenient(input);
+        let joins = repairs
+            .iter()
+            .filter(|r| r.kind == RepairKind::JoinedQuotedPrintable)
+            .count();
+        assert_eq!(joins, 2);
     }
 
     #[test]

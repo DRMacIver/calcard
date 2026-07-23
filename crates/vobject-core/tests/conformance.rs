@@ -83,6 +83,7 @@ fn qp_hazard(components: &[Component]) -> bool {
         all_properties(c).into_iter().any(|p| {
             p.value.contains('=')
                 && property_line(p)
+                    .expect("parsed properties are writable")
                     .split(':')
                     .next()
                     .unwrap_or("")
@@ -124,7 +125,8 @@ fn serialization_is_faithful_on_corpus() {
             skipped_qp += 1;
             continue;
         }
-        let wire = write_document(&first.components, &WriteOptions::default());
+        let wire = write_document(&first.components, &WriteOptions::default())
+            .expect("parsed models are always writable");
         let second = parse(&wire, &ParseOptions::lenient())
             .unwrap_or_else(|e| panic!("reparse failed on {}: {e}", path.display()));
         assert_eq!(
@@ -149,7 +151,8 @@ fn writer_output_lines_respect_fold_width_on_corpus() {
         let bytes = fs::read(&path).unwrap();
         let text = String::from_utf8_lossy(&bytes);
         let parsed = parse(&text, &ParseOptions::lenient()).unwrap();
-        let wire = write_document(&parsed.components, &WriteOptions::default());
+        let wire = write_document(&parsed.components, &WriteOptions::default())
+            .expect("parsed models are always writable");
         for line in wire.split("\r\n") {
             assert!(
                 line.len() <= 75,

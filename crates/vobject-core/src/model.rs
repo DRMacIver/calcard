@@ -192,11 +192,12 @@ impl Component {
 
 impl fmt::Display for Component {
     /// Serializes with default options (CRLF, folded at 75 octets).
+    /// A model that cannot be written (see [`crate::write::WriteError`])
+    /// surfaces as `fmt::Error`.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&crate::write::write_component(
-            self,
-            &crate::write::WriteOptions::default(),
-        ))
+        let out = crate::write::write_component(self, &crate::write::WriteOptions::default())
+            .map_err(|_| fmt::Error)?;
+        f.write_str(&out)
     }
 }
 
